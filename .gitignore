@@ -26,3 +26,59 @@ coverage/
 # Local runtime files
 tmp/
 .cache/
+
+# Frontend / JS toolchain
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.next/
+frontend/.nuxt/
+frontend/.vercel/
+frontend/.vite/
+frontend/public/build/
+frontend/.parcel-cache/
+
+# Monorepo-agnostic (also covers top-level frontend if not in folder)
+node_modules/
+dist/
+build/
+out/
+.next/
+.nuxt/
+.vercel/
+.vite/
+public/build/
+.parcel-cache/
+
+# Package manager files
+.pnp.cjs
+.pnp.js
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Env and secrets
+.env.local
+.env.*.local
+.env.production
+
+# Tool caches
+.eslintcache
+.turbo/
+.vite/
+
+# IDEs / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Coverage / reports
+coverage/
+
+# Firebase / misc
+.firebase/
+.history/
