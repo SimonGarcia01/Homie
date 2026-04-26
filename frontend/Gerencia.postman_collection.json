@@ -1,0 +1,82 @@
+{
+  "info": {
+    "_postman_id": "40c0bfd3-e302-43f4-bae9-2f5b78333085",
+    "name": "Gerencia",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "43808561",
+    "_collection_link": "https://go.postman.co/collection/43808561-40c0bfd3-e302-43f4-bae9-2f5b78333085?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Get All Users",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/users",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "users"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Start Seed",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/seed",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "seed"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "login",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"email\":\"admin@boho.test\",\r\n    \"password\":\"Admin1234!\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{baseUrl}}api/auth/login",
+          "host": [
+            "{{baseUrl}}api"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Me",
+      "request": {
+        "method": "GET",
+        "header": []
+      },
+      "response": []
+    }
+  ]
+}
