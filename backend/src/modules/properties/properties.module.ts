@@ -10,6 +10,8 @@ import { PropertyAgent } from './entities/property-agent.entity';
 import { Property } from './entities/property.entity';
 import { PropertiesController } from './properties.controller';
 import { PropertiesService } from './properties.service';
+import { PropertyImagesController } from './property-images.controller';
+import { PropertyImagesService } from './property-images.service';
 
 @Module({
     imports: [
@@ -23,8 +25,8 @@ import { PropertiesService } from './properties.service';
             PropertyAgent,
         ]),
     ],
-    controllers: [PropertiesController],
-    providers: [PropertiesService],
-    exports: [PropertiesService],
+    controllers: [PropertiesController, PropertyImagesController],
+    providers: [PropertiesService, PropertyImagesService],
+    exports: [PropertiesService, PropertyImagesService],
 })
 export class PropertiesModule {}
