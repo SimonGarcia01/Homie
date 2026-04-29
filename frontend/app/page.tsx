@@ -34,6 +34,9 @@ export default function HomePage() {
                     <Link href="/finanzas" className="btn btn-secondary">
                         Finanzas
                     </Link>
+                    <Link href="/me/reports" className="btn btn-secondary">
+                        Reportes
+                    </Link>
                 </div>
 
                 <div className="footer-links">

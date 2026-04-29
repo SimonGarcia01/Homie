@@ -94,6 +94,7 @@ export default function MePage() {
 
                 <div className="footer-links">
                     <Link href="/">Back home</Link>
+                    <Link href="/me/reports">Reportes</Link>
                     <Link href="/login">Back to login</Link>
                 </div>
             </section>
