@@ -1,4 +1,5 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, '') ?? '';
+import { buildPublicApiUrl } from './api-base';
+
 const ACCESS_TOKEN_STORAGE_KEY = 'accessToken';
 
 type ApiError = {
@@ -31,13 +32,7 @@ export type LoginResponse = LoginSuccess | ApiError;
 export type MeResponse = AuthUser | ApiError;
 
 function buildApiUrl(path: string): string {
-    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
-
-    if (!API_BASE_URL) {
-        return normalizedPath;
-    }
-
-    return `${API_BASE_URL}${normalizedPath}`;
+    return buildPublicApiUrl(path);
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

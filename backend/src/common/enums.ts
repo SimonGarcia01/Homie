@@ -144,3 +144,8 @@ export enum RentalContractStatus {
     ENDED = 'ended',
     CANCELLED = 'cancelled',
 }
+
+export enum PropertyIncomeType {
+    ARRIENDO = 'arriendo',
+    VENTA = 'venta',
+}
