@@ -33,8 +33,8 @@ export class PropertyImagesService {
         private readonly dataSource: DataSource,
     ) {}
 
-    async listForProperty(propertyId: string): Promise<PropertyImageResponseDto[]> {
-        await this.ensurePropertyExists(propertyId);
+    async listForProperty(propertyId: string, organizationId: string): Promise<PropertyImageResponseDto[]> {
+        await this.ensurePropertyAccess(propertyId, organizationId);
 
         const images = await this.imagesRepo.find({
             where: { propertyId },
@@ -44,8 +44,12 @@ export class PropertyImagesService {
         return images.map((image) => this.toResponse(image));
     }
 
-    async upload(propertyId: string, files: IncomingFile[] | undefined): Promise<UploadPropertyImagesResponseDto> {
-        await this.ensurePropertyExists(propertyId);
+    async upload(
+        propertyId: string,
+        organizationId: string,
+        files: IncomingFile[] | undefined,
+    ): Promise<UploadPropertyImagesResponseDto> {
+        await this.ensurePropertyAccess(propertyId, organizationId);
 
         const uploaded: PropertyImageResponseDto[] = [];
         const rejected: RejectedImageDto[] = [];
@@ -105,8 +109,12 @@ export class PropertyImagesService {
         return { uploaded, rejected };
     }
 
-    async remove(propertyId: string, imageId: string): Promise<{ id: string; newCoverId: string | null }> {
-        await this.ensurePropertyExists(propertyId);
+    async remove(
+        propertyId: string,
+        organizationId: string,
+        imageId: string,
+    ): Promise<{ id: string; newCoverId: string | null }> {
+        await this.ensurePropertyAccess(propertyId, organizationId);
 
         const image = await this.imagesRepo.findOne({ where: { id: imageId, propertyId } });
         if (!image) throw new NotFoundException('Image not found');
@@ -137,8 +145,8 @@ export class PropertyImagesService {
         return { id: image.id, newCoverId: newCover?.id ?? null };
     }
 
-    async setCover(propertyId: string, imageId: string): Promise<PropertyImageResponseDto> {
-        await this.ensurePropertyExists(propertyId);
+    async setCover(propertyId: string, organizationId: string, imageId: string): Promise<PropertyImageResponseDto> {
+        await this.ensurePropertyAccess(propertyId, organizationId);
 
         const image = await this.imagesRepo.findOne({ where: { id: imageId, propertyId } });
         if (!image) throw new NotFoundException('Image not found');
@@ -165,8 +173,8 @@ export class PropertyImagesService {
         return null;
     }
 
-    private async ensurePropertyExists(propertyId: string): Promise<void> {
-        const exists = await this.propertiesRepo.exists({ where: { id: propertyId } });
+    private async ensurePropertyAccess(propertyId: string, organizationId: string): Promise<void> {
+        const exists = await this.propertiesRepo.exists({ where: { id: propertyId, organizationId } });
         if (!exists) throw new NotFoundException('Property not found');
     }
 

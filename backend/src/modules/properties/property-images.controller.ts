@@ -8,6 +8,7 @@ import {
     ParseUUIDPipe,
     Patch,
     Post,
+    Req,
     UploadedFiles,
     UseInterceptors,
 } from '@nestjs/common';
@@ -27,6 +28,8 @@ type IncomingFile = {
     buffer: Buffer;
 };
 
+type RequestWithOrg = { user: { organizationId: string } };
+
 @ApiTags('property-images')
 @ApiBearerAuth()
 @Controller('properties/:propertyId/images')
@@ -35,8 +38,8 @@ export class PropertyImagesController {
 
     @Get()
     @ApiOperation({ summary: 'List all images for a property' })
-    list(@Param('propertyId', new ParseUUIDPipe()) propertyId: string) {
-        return this.service.listForProperty(propertyId);
+    list(@Param('propertyId', new ParseUUIDPipe()) propertyId: string, @Req() req: RequestWithOrg) {
+        return this.service.listForProperty(propertyId, req.user.organizationId);
     }
 
     @Post()
@@ -59,8 +62,12 @@ export class PropertyImagesController {
             },
         },
     })
-    upload(@Param('propertyId', new ParseUUIDPipe()) propertyId: string, @UploadedFiles() files: IncomingFile[]) {
-        return this.service.upload(propertyId, files);
+    upload(
+        @Param('propertyId', new ParseUUIDPipe()) propertyId: string,
+        @UploadedFiles() files: IncomingFile[],
+        @Req() req: RequestWithOrg,
+    ) {
+        return this.service.upload(propertyId, req.user.organizationId, files);
     }
 
     @Delete(':imageId')
@@ -70,8 +77,9 @@ export class PropertyImagesController {
     remove(
         @Param('propertyId', new ParseUUIDPipe()) propertyId: string,
         @Param('imageId', new ParseUUIDPipe()) imageId: string,
+        @Req() req: RequestWithOrg,
     ) {
-        return this.service.remove(propertyId, imageId);
+        return this.service.remove(propertyId, req.user.organizationId, imageId);
     }
 
     @Patch(':imageId/cover')
@@ -80,7 +88,8 @@ export class PropertyImagesController {
     setCover(
         @Param('propertyId', new ParseUUIDPipe()) propertyId: string,
         @Param('imageId', new ParseUUIDPipe()) imageId: string,
+        @Req() req: RequestWithOrg,
     ) {
-        return this.service.setCover(propertyId, imageId);
+        return this.service.setCover(propertyId, req.user.organizationId, imageId);
     }
 }
