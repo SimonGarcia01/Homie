@@ -18,8 +18,8 @@ export class PropertyLocation {
     @Column({ length: 120 })
     city!: string;
 
-    @Column({ type: 'text', nullable: true })
-    address?: string;
+    @Column({ type: 'varchar', length: 255, nullable: true })
+    address?: string | null;
 
     @Column({
         type: 'enum',
