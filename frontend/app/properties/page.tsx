@@ -21,10 +21,28 @@ const PROPERTY_TYPES: { value: PropertyType; label: string }[] = [
     { value: 'apartment', label: 'Apartamento' },
     { value: 'house', label: 'Casa' },
     { value: 'studio', label: 'Apartaestudio' },
-    { value: 'office', label: 'Oficina' },
+    { value: 'office', label: 'Oficina / Local' },
     { value: 'warehouse', label: 'Bodega' },
     { value: 'land', label: 'Lote / Terreno' },
+    { value: 'other', label: 'Otro' },
 ];
+
+function formatCop(value: string | number | undefined | null): string {
+    if (value === undefined || value === null || value === '') return '—';
+    const num = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(num)) return '—';
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        maximumFractionDigits: 0,
+    }).format(num);
+}
+
+function formatLocation(location: { city: string; country: string; address?: string | null } | null | undefined): string {
+    if (!location) return '—';
+    const parts = [location.address, location.city, location.country].filter((part): part is string => Boolean(part));
+    return parts.length > 0 ? parts.join(', ') : '—';
+}
 
 const COMMERCIAL: { value: PropertyCommercialStatus; label: string }[] = [
     { value: 'available', label: 'Disponible' },
@@ -58,9 +76,16 @@ export default function PropertiesPage() {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [propertyType, setPropertyType] = useState<PropertyType>('apartment');
+    const [monthlyRent, setMonthlyRent] = useState('');
+    const [currency, setCurrency] = useState('COP');
+    const [city, setCity] = useState('');
+    const [country, setCountry] = useState('Colombia');
+    const [address, setAddress] = useState('');
     const [commercialStatus, setCommercialStatus] = useState<PropertyCommercialStatus>('available');
     const [publicationStatus, setPublicationStatus] = useState<PropertyPublicationStatus>('draft');
     const [isVisible, setIsVisible] = useState(true);
+
+    const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (!getAccessToken()) {
@@ -117,10 +142,25 @@ export default function PropertiesPage() {
         e.preventDefault();
         setError(null);
         setSuccess(null);
-        if (!ownerId) {
-            setError('Selecciona un propietario.');
+
+        const errors: Record<string, string> = {};
+        if (!ownerId) errors.ownerId = 'Selecciona un propietario.';
+        if (!code.trim()) errors.code = 'El código es obligatorio.';
+        if (!title.trim()) errors.title = 'El nombre es obligatorio.';
+        const rentNumber = Number(monthlyRent);
+        if (!monthlyRent.trim()) {
+            errors.monthlyRent = 'El precio es obligatorio.';
+        } else if (!Number.isFinite(rentNumber) || rentNumber <= 0) {
+            errors.monthlyRent = 'El precio debe ser un número mayor a 0.';
+        }
+        if (!city.trim()) errors.city = 'La ciudad es obligatoria.';
+
+        setFieldErrors(errors);
+        if (Object.keys(errors).length > 0) {
+            setError('Revisa los campos obligatorios.');
             return;
         }
+
         setSubmitting(true);
         const payload: CreatePropertyPayload = {
             ownerId,
@@ -128,6 +168,11 @@ export default function PropertiesPage() {
             title: title.trim(),
             description: description.trim() || undefined,
             propertyType,
+            monthlyRent: rentNumber,
+            currency: currency.trim() || undefined,
+            city: city.trim(),
+            country: country.trim() || undefined,
+            address: address.trim() || undefined,
             commercialStatus,
             publicationStatus,
             isVisible,
@@ -142,6 +187,10 @@ export default function PropertiesPage() {
         setCode('');
         setTitle('');
         setDescription('');
+        setMonthlyRent('');
+        setCity('');
+        setAddress('');
+        setFieldErrors({});
         await refreshList();
     }
 
@@ -186,7 +235,7 @@ export default function PropertiesPage() {
                         <form className="stack stack-lg" onSubmit={handleSubmit}>
                             <div className="field">
                                 <label className="field-label" htmlFor="ownerId">
-                                    Propietario
+                                    Propietario *
                                 </label>
                                 <select
                                     id="ownerId"
@@ -205,10 +254,11 @@ export default function PropertiesPage() {
                                         </option>
                                     ))}
                                 </select>
+                                {fieldErrors.ownerId && <p className="field-error">{fieldErrors.ownerId}</p>}
                             </div>
                             <div className="field">
                                 <label className="field-label" htmlFor="code">
-                                    Codigo interno
+                                    Código interno *
                                 </label>
                                 <input
                                     id="code"
@@ -218,10 +268,11 @@ export default function PropertiesPage() {
                                     maxLength={50}
                                     required
                                 />
+                                {fieldErrors.code && <p className="field-error">{fieldErrors.code}</p>}
                             </div>
                             <div className="field">
                                 <label className="field-label" htmlFor="title">
-                                    Titulo
+                                    Nombre *
                                 </label>
                                 <input
                                     id="title"
@@ -231,6 +282,7 @@ export default function PropertiesPage() {
                                     maxLength={180}
                                     required
                                 />
+                                {fieldErrors.title && <p className="field-error">{fieldErrors.title}</p>}
                             </div>
                             <div className="field">
                                 <label className="field-label" htmlFor="description">
@@ -245,7 +297,7 @@ export default function PropertiesPage() {
                             </div>
                             <div className="field">
                                 <label className="field-label" htmlFor="propertyType">
-                                    Tipo
+                                    Tipo *
                                 </label>
                                 <select
                                     id="propertyType"
@@ -260,6 +312,82 @@ export default function PropertiesPage() {
                                     ))}
                                 </select>
                             </div>
+
+                            <div className="income-filters">
+                                <div className="field">
+                                    <label className="field-label" htmlFor="monthlyRent">
+                                        Precio mensual *
+                                    </label>
+                                    <input
+                                        id="monthlyRent"
+                                        className="field-input"
+                                        type="number"
+                                        min="0"
+                                        step="1000"
+                                        inputMode="decimal"
+                                        value={monthlyRent}
+                                        onChange={(ev) => setMonthlyRent(ev.target.value)}
+                                        required
+                                    />
+                                    {fieldErrors.monthlyRent && <p className="field-error">{fieldErrors.monthlyRent}</p>}
+                                </div>
+                                <div className="field">
+                                    <label className="field-label" htmlFor="currency">
+                                        Moneda
+                                    </label>
+                                    <input
+                                        id="currency"
+                                        className="field-input"
+                                        value={currency}
+                                        onChange={(ev) => setCurrency(ev.target.value.toUpperCase())}
+                                        maxLength={10}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="income-filters">
+                                <div className="field">
+                                    <label className="field-label" htmlFor="city">
+                                        Ciudad *
+                                    </label>
+                                    <input
+                                        id="city"
+                                        className="field-input"
+                                        value={city}
+                                        onChange={(ev) => setCity(ev.target.value)}
+                                        maxLength={120}
+                                        required
+                                    />
+                                    {fieldErrors.city && <p className="field-error">{fieldErrors.city}</p>}
+                                </div>
+                                <div className="field">
+                                    <label className="field-label" htmlFor="country">
+                                        País
+                                    </label>
+                                    <input
+                                        id="country"
+                                        className="field-input"
+                                        value={country}
+                                        onChange={(ev) => setCountry(ev.target.value)}
+                                        maxLength={80}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="field">
+                                <label className="field-label" htmlFor="address">
+                                    Dirección
+                                </label>
+                                <input
+                                    id="address"
+                                    className="field-input"
+                                    value={address}
+                                    onChange={(ev) => setAddress(ev.target.value)}
+                                    maxLength={255}
+                                    placeholder="Ej. Av. Roosevelt 23-45"
+                                />
+                            </div>
+
                             <div className="income-filters">
                                 <div className="field">
                                     <label className="field-label" htmlFor="commercialStatus">
@@ -322,10 +450,12 @@ export default function PropertiesPage() {
                                 <table className="property-table">
                                     <thead>
                                         <tr>
-                                            <th>Codigo</th>
-                                            <th>Titulo</th>
+                                            <th>Código</th>
+                                            <th>Nombre</th>
                                             <th>Tipo</th>
-                                            <th>Comercial</th>
+                                            <th>Precio</th>
+                                            <th>Ubicación</th>
+                                            <th>Estado</th>
                                             <th>Pub.</th>
                                             <th>Ver</th>
                                             <th>Imágenes</th>
@@ -338,6 +468,8 @@ export default function PropertiesPage() {
                                                 <td className="mono">{p.code}</td>
                                                 <td>{p.title}</td>
                                                 <td>{labelOf(PROPERTY_TYPES, p.propertyType)}</td>
+                                                <td>{formatCop(p.rentalDetail?.monthlyRent)}</td>
+                                                <td>{formatLocation(p.location)}</td>
                                                 <td>{labelOf(COMMERCIAL, p.commercialStatus)}</td>
                                                 <td>{labelOf(PUBLICATION, p.publicationStatus)}</td>
                                                 <td>{p.isVisible ? 'Si' : 'No'}</td>
