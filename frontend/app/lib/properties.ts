@@ -12,9 +12,20 @@ export type PropertyOption = {
     code: string;
 };
 
-export type PropertyType = 'apartment' | 'house' | 'studio' | 'office' | 'warehouse' | 'land';
+export type PropertyType = 'apartment' | 'house' | 'studio' | 'office' | 'warehouse' | 'land' | 'other';
 export type PropertyCommercialStatus = 'available' | 'reserved' | 'rented' | 'inactive';
 export type PropertyPublicationStatus = 'draft' | 'published' | 'hidden';
+
+export type PropertyRentalDetailInfo = {
+    monthlyRent: string;
+    currency: string;
+};
+
+export type PropertyLocationInfo = {
+    country: string;
+    city: string;
+    address?: string | null;
+};
 
 export type Property = {
     id: string;
@@ -30,6 +41,8 @@ export type Property = {
     createdAt: string;
     updatedAt: string;
     coverImageUrl?: string | null;
+    rentalDetail?: PropertyRentalDetailInfo | null;
+    location?: PropertyLocationInfo | null;
 };
 
 export type CreatePropertyPayload = {
@@ -38,6 +51,11 @@ export type CreatePropertyPayload = {
     title: string;
     description?: string;
     propertyType: PropertyType;
+    monthlyRent: number;
+    currency?: string;
+    city: string;
+    country?: string;
+    address?: string;
     commercialStatus?: PropertyCommercialStatus;
     publicationStatus?: PropertyPublicationStatus;
     isVisible?: boolean;

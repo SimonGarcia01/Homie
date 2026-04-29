@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import PDFDocument from 'pdfkit';
-import { Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 
 import { PropertyCommercialStatus, PropertyExpenseCategory, PropertyPublicationStatus } from '../../common/enums';
 
@@ -17,6 +17,8 @@ import { UpdatePropertyIncomeDto } from './dto/update-property-income.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyExpense } from './entities/property-expense.entity';
 import { PropertyIncome } from './entities/property-income.entity';
+import { PropertyLocation } from './entities/property-location.entity';
+import { PropertyRentalDetail } from './entities/property-rental-detail.entity';
 import { Property } from './entities/property.entity';
 
 type DateRangeFilter = { startDate?: string; endDate?: string };
@@ -36,27 +38,50 @@ export class PropertiesService {
         private readonly incomeRepository: Repository<PropertyIncome>,
         @InjectRepository(PropertyExpense)
         private readonly expenseRepository: Repository<PropertyExpense>,
+        private readonly dataSource: DataSource,
     ) {}
 
     async create(createDto: CreatePropertyDto, organizationId: string) {
-        const entity = this.repository.create({
-            organizationId,
-            ownerId: createDto.ownerId,
-            code: createDto.code.trim(),
-            title: createDto.title.trim(),
-            description: createDto.description?.trim(),
-            propertyType: createDto.propertyType,
-            commercialStatus: createDto.commercialStatus ?? PropertyCommercialStatus.AVAILABLE,
-            publicationStatus: createDto.publicationStatus ?? PropertyPublicationStatus.DRAFT,
-            isVisible: createDto.isVisible ?? true,
+        return this.dataSource.transaction(async (manager) => {
+            const property = manager.create(Property, {
+                organizationId,
+                ownerId: createDto.ownerId,
+                code: createDto.code.trim(),
+                title: createDto.title.trim(),
+                description: createDto.description?.trim(),
+                propertyType: createDto.propertyType,
+                commercialStatus: createDto.commercialStatus ?? PropertyCommercialStatus.AVAILABLE,
+                publicationStatus: createDto.publicationStatus ?? PropertyPublicationStatus.DRAFT,
+                isVisible: createDto.isVisible ?? true,
+            });
+            const savedProperty = await manager.save(property);
+
+            const rentalDetail = manager.create(PropertyRentalDetail, {
+                propertyId: savedProperty.id,
+                monthlyRent: createDto.monthlyRent.toFixed(2),
+                currency: createDto.currency?.trim() || 'COP',
+            });
+            await manager.save(rentalDetail);
+
+            const location = manager.create(PropertyLocation, {
+                propertyId: savedProperty.id,
+                country: createDto.country?.trim() || 'Colombia',
+                city: createDto.city.trim(),
+                address: createDto.address?.trim(),
+            });
+            await manager.save(location);
+
+            return manager.findOneOrFail(Property, {
+                where: { id: savedProperty.id },
+                relations: { rentalDetail: true, location: true, images: true },
+            });
         });
-        return this.repository.save(entity);
     }
 
     async findAll(organizationId: string) {
         const properties = await this.repository.find({
             where: { organizationId },
-            relations: { images: true },
+            relations: { images: true, rentalDetail: true, location: true },
             order: { updatedAt: 'DESC' },
         });
         return properties.map((property) => this.attachCover(property));
@@ -65,7 +90,7 @@ export class PropertiesService {
     async findOne(id: string, organizationId: string) {
         const entity = await this.repository.findOne({
             where: { id, organizationId },
-            relations: { images: true },
+            relations: { images: true, rentalDetail: true, location: true },
         });
         if (!entity) throw new NotFoundException('Property not found');
         return this.attachCover(entity);

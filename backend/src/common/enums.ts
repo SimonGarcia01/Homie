@@ -37,6 +37,7 @@ export enum PropertyType {
     OFFICE = 'office',
     WAREHOUSE = 'warehouse',
     LAND = 'land',
+    OTHER = 'other',
 }
 
 export enum PropertyCommercialStatus {
