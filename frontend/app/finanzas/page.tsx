@@ -477,6 +477,7 @@ export default function FinanzasPage() {
 
                 <div className="footer-links">
                     <Link href="/">Inicio</Link>
+                    <Link href="/me/reports">Reportes Globales</Link>
                     <Link href="/incomes">Ingresos</Link>
                     <Link href="/properties">Propiedades</Link>
                     <Link href="/me">Perfil</Link>
