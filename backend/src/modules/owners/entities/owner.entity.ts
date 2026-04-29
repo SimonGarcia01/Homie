@@ -1,13 +1,13 @@
 import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  Index,
-  JoinColumn,
-  ManyToOne,
-  OneToMany,
-  OneToOne,
-  PrimaryGeneratedColumn,
+    Column,
+    CreateDateColumn,
+    Entity,
+    Index,
+    JoinColumn,
+    ManyToOne,
+    OneToMany,
+    OneToOne,
+    PrimaryGeneratedColumn,
 } from 'typeorm';
 
 import { OwnerType } from '../../../common/enums';
@@ -17,36 +17,36 @@ import { Property } from '../../properties/entities/property.entity';
 
 @Entity({ name: 'owners' })
 export class Owner {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
+    @PrimaryGeneratedColumn('uuid')
+    id!: string;
 
-  @Index()
-  @Column({ type: 'uuid', name: 'contact_id', unique: true })
-  contactId!: string;
+    @Index()
+    @Column({ type: 'uuid', name: 'contact_id', unique: true })
+    contactId!: string;
 
-  @Index()
-  @Column({ type: 'uuid', name: 'organization_id' })
-  organizationId!: string;
+    @Index()
+    @Column({ type: 'uuid', name: 'organization_id' })
+    organizationId!: string;
 
-  @Column({
-    type: 'enum',
-    enum: OwnerType,
-    name: 'owner_type',
-    default: OwnerType.PERSON,
-  })
-  ownerType!: OwnerType;
+    @Column({
+        type: 'enum',
+        enum: OwnerType,
+        name: 'owner_type',
+        default: OwnerType.PERSON,
+    })
+    ownerType!: OwnerType;
 
-  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
-  createdAt!: Date;
+    @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
+    createdAt!: Date;
 
-  @OneToOne(() => Contact)
-  @JoinColumn({ name: 'contact_id' })
-  contact?: Contact;
+    @OneToOne(() => Contact)
+    @JoinColumn({ name: 'contact_id' })
+    contact?: Contact;
 
-  @ManyToOne(() => Organization, (organization) => organization.owners)
-  @JoinColumn({ name: 'organization_id' })
-  organization?: Organization;
+    @ManyToOne(() => Organization, (organization) => organization.owners)
+    @JoinColumn({ name: 'organization_id' })
+    organization?: Organization;
 
-  @OneToMany(() => Property, (property) => property.owner)
-  properties?: Property[];
+    @OneToMany(() => Property, (property) => property.owner)
+    properties?: Property[];
 }

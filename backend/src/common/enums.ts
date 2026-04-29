@@ -144,3 +144,15 @@ export enum RentalContractStatus {
     ENDED = 'ended',
     CANCELLED = 'cancelled',
 }
+
+export enum PropertyIncomeType {
+    ARRIENDO = 'arriendo',
+    VENTA = 'venta',
+}
+
+/** Categorías predefinidas de gasto por propiedad */
+export enum PropertyExpenseCategory {
+    MANTENIMIENTO = 'mantenimiento',
+    IMPUESTO = 'impuesto',
+    SERVICIO = 'servicio',
+}
