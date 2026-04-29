@@ -15,6 +15,7 @@ export default function HomePage() {
                     <span className="chip">JWT Login</span>
                     <span className="chip">Protected Route</span>
                     <span className="chip">Reusable UI Theme</span>
+                    <span className="chip">Income Tracking</span>
                 </div>
 
                 <div className="actions">
@@ -24,14 +25,23 @@ export default function HomePage() {
                     <Link href="/me" className="btn btn-secondary">
                         Try Get Me
                     </Link>
+                    <Link href="/incomes" className="btn btn-secondary">
+                        Open Incomes
+                    </Link>
                     <Link href="/properties" className="btn btn-secondary">
-                        Propiedades · HU-02
+                        Propiedades
+                    </Link>
+                    <Link href="/finanzas" className="btn btn-secondary">
+                        Finanzas
                     </Link>
                 </div>
 
                 <div className="footer-links">
                     <Link href="/login">Start with credentials</Link>
                     <Link href="/me">Direct profile endpoint view</Link>
+                    <Link href="/incomes">Property incomes dashboard</Link>
+                    <Link href="/properties">Propiedades (alta y listado)</Link>
+                    <Link href="/finanzas">Gastos, balance y reportes</Link>
                 </div>
             </section>
         </main>

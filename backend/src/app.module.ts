@@ -21,6 +21,7 @@ import { PropertiesModule } from './modules/properties/properties.module';
 import { RentalApplicationsModule } from './modules/rental-applications/rental-applications.module';
 import { RentalContractsModule } from './modules/rental-contracts/rental-contracts.module';
 import { RentalEvaluationsModule } from './modules/rental-evaluations/rental-evaluations.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { SeedModule } from './scripts/seed.module';
 import { TasksModule } from './modules/tasks/tasks.module';
@@ -69,6 +70,7 @@ import { VisitsModule } from './modules/visits/visits.module';
         DocumentsModule,
         RentalEvaluationsModule,
         RentalContractsModule,
+        ReportsModule,
         SeedModule,
     ],
     controllers: [AppController],

@@ -5,6 +5,8 @@ import { PropertyRentalDetail } from './entities/property-rental-detail.entity';
 import { PropertyLocation } from './entities/property-location.entity';
 import { PropertyImage } from './entities/property-image.entity';
 import { PropertyFeature } from './entities/property-feature.entity';
+import { PropertyExpense } from './entities/property-expense.entity';
+import { PropertyIncome } from './entities/property-income.entity';
 import { PropertyAmenity } from './entities/property-amenity.entity';
 import { PropertyAgent } from './entities/property-agent.entity';
 import { Property } from './entities/property.entity';
@@ -20,6 +22,8 @@ import { PropertyImagesService } from './property-images.service';
             PropertyLocation,
             PropertyRentalDetail,
             PropertyFeature,
+            PropertyIncome,
+            PropertyExpense,
             PropertyAmenity,
             PropertyImage,
             PropertyAgent,

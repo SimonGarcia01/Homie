@@ -11,7 +11,9 @@ import { Visit } from '../../visits/entities/visit.entity';
 
 import { PropertyAgent } from './property-agent.entity';
 import { PropertyAmenity } from './property-amenity.entity';
+import { PropertyExpense } from './property-expense.entity';
 import { PropertyFeature } from './property-feature.entity';
+import { PropertyIncome } from './property-income.entity';
 import { PropertyImage } from './property-image.entity';
 import { PropertyLocation } from './property-location.entity';
 import { PropertyRentalDetail } from './property-rental-detail.entity';
@@ -96,4 +98,13 @@ export class Property extends TimestampEntity {
 
     @OneToMany(() => RentalContract, (rentalContract) => rentalContract.property)
     contracts?: RentalContract[];
+
+    @OneToMany(() => PropertyIncome, (propertyIncome) => propertyIncome.property)
+    incomes?: PropertyIncome[];
+
+    @OneToMany(() => PropertyExpense, (propertyExpense) => propertyExpense.property)
+    expenses?: PropertyExpense[];
+
+    @Column({ type: 'date', name: 'available_date', nullable: true })
+    availableDate?: string;
 }
