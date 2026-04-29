@@ -104,4 +104,7 @@ export class Property extends TimestampEntity {
 
     @OneToMany(() => PropertyExpense, (propertyExpense) => propertyExpense.property)
     expenses?: PropertyExpense[];
+
+    @Column({ type: 'date', name: 'available_date', nullable: true })
+    availableDate?: string;
 }
