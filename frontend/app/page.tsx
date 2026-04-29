@@ -31,6 +31,9 @@ export default function HomePage() {
                     <Link href="/properties" className="btn btn-secondary">
                         Propiedades
                     </Link>
+                    <Link href="/finanzas" className="btn btn-secondary">
+                        Finanzas
+                    </Link>
                 </div>
 
                 <div className="footer-links">
@@ -38,6 +41,7 @@ export default function HomePage() {
                     <Link href="/me">Direct profile endpoint view</Link>
                     <Link href="/incomes">Property incomes dashboard</Link>
                     <Link href="/properties">Propiedades (alta y listado)</Link>
+                    <Link href="/finanzas">Gastos, balance y reportes</Link>
                 </div>
             </section>
         </main>

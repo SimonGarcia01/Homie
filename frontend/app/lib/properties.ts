@@ -173,13 +173,22 @@ export async function createProperty(payload: CreatePropertyPayload): Promise<Pr
     return response;
 }
 
-export async function downloadPropertyRecordsPdf(propertyId: string): Promise<true | ApiError> {
+export async function downloadPropertyRecordsPdf(
+    propertyId: string,
+    startDate?: string,
+    endDate?: string,
+): Promise<true | ApiError> {
     const token = getAccessToken();
     if (!token) {
         return { error: 'Missing access token', status: 401 };
     }
 
-    const response = await fetch(buildApiUrl(`/api/properties/${propertyId}/report/pdf`), {
+    const qs = new URLSearchParams();
+    if (startDate) qs.set('startDate', startDate);
+    if (endDate) qs.set('endDate', endDate);
+    const suffix = qs.toString();
+
+    const response = await fetch(buildApiUrl(`/api/properties/${propertyId}/report/pdf${suffix ? `?${suffix}` : ''}`), {
         headers: { Authorization: `Bearer ${token}` },
         cache: 'no-store',
     });

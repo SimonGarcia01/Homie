@@ -455,6 +455,110 @@ a {
     font-size: 0.82rem;
 }
 
+.finanza-filters {
+    grid-template-columns: 1.2fr 1fr 1fr;
+}
+
+.balance-strip {
+    margin: 1rem 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 1rem;
+    justify-content: space-between;
+}
+
+.balance-card {
+    flex: 1;
+    min-width: min(100%, 18rem);
+    border-radius: var(--radius-lg);
+    padding: 1rem 1.1rem;
+    background: linear-gradient(135deg, rgba(15, 118, 110, 0.14), rgba(255, 255, 255, 0.75));
+    border: 1px solid rgba(15, 118, 110, 0.22);
+}
+
+.balance-hero {
+    margin: 0.35rem 0 0;
+    font-family: var(--font-display), sans-serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+}
+
+.balance-hero--pos {
+    color: var(--primary);
+}
+
+.balance-hero--neg {
+    color: #b91c1c;
+}
+
+.balance-detail {
+    margin: 0.5rem 0 0;
+    font-size: 0.88rem;
+    color: var(--ink-700);
+}
+
+.finanza-layout {
+    align-items: start;
+}
+
+.finanza-hint {
+    margin: -0.25rem 0 0.5rem;
+    font-size: 0.86rem;
+    color: var(--ink-500);
+}
+
+.desc-cell {
+    max-width: 14rem;
+    overflow-wrap: break-word;
+}
+
+.report-block {
+    margin-top: 1rem;
+}
+
+.report-cats {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.report-cat-card {
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(40, 36, 33, 0.12);
+    background: rgba(255, 255, 255, 0.72);
+    padding: 0.85rem;
+}
+
+.report-cat-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 0.5rem;
+}
+
+.report-sub {
+    font-family: var(--font-display), sans-serif;
+    font-weight: 700;
+    color: var(--primary);
+}
+
+.report-meta {
+    margin: 0.25rem 0 0.5rem;
+    font-size: 0.8rem;
+    color: var(--ink-500);
+}
+
+.report-items {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.85rem;
+    color: var(--ink-700);
+}
+
+.report-items li {
+    margin-bottom: 0.35rem;
+}
+
 .chip {
     padding: 0.34rem 0.62rem;
     border-radius: 999px;
@@ -628,8 +732,16 @@ a {
         grid-template-columns: 1fr;
     }
 
+    .finanza-filters {
+        grid-template-columns: 1fr;
+    }
+
     .income-filters {
         grid-template-columns: 1fr;
+    }
+
+    .balance-strip {
+        flex-direction: column;
     }
 
     .history-row {

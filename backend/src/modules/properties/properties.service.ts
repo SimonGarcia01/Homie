@@ -3,15 +3,29 @@ import { InjectRepository } from '@nestjs/typeorm';
 import PDFDocument from 'pdfkit';
 import { Repository, SelectQueryBuilder } from 'typeorm';
 
-import { PropertyCommercialStatus, PropertyPublicationStatus } from '../../common/enums';
+import { PropertyCommercialStatus, PropertyExpenseCategory, PropertyPublicationStatus } from '../../common/enums';
 
+import { CreatePropertyExpenseDto } from './dto/create-property-expense.dto';
 import { CreatePropertyIncomeDto } from './dto/create-property-income.dto';
 import { CreatePropertyDto } from './dto/create-property.dto';
+import { PropertyBalanceQueryDto } from './dto/property-balance-query.dto';
+import { PropertyExpenseReportQueryDto } from './dto/property-expense-report-query.dto';
 import { PropertyIncomeSummaryQueryDto } from './dto/property-income-summary-query.dto';
+import { PropertyReportPdfQueryDto } from './dto/property-report-pdf-query.dto';
+import { UpdatePropertyExpenseDto } from './dto/update-property-expense.dto';
 import { UpdatePropertyIncomeDto } from './dto/update-property-income.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
+import { PropertyExpense } from './entities/property-expense.entity';
 import { PropertyIncome } from './entities/property-income.entity';
 import { Property } from './entities/property.entity';
+
+type DateRangeFilter = { startDate?: string; endDate?: string };
+
+const EXPENSE_CATEGORY_LABEL: Record<PropertyExpenseCategory, string> = {
+    [PropertyExpenseCategory.MANTENIMIENTO]: 'Mantenimiento',
+    [PropertyExpenseCategory.IMPUESTO]: 'Impuesto',
+    [PropertyExpenseCategory.SERVICIO]: 'Servicio',
+};
 
 @Injectable()
 export class PropertiesService {
@@ -20,6 +34,8 @@ export class PropertiesService {
         private readonly repository: Repository<Property>,
         @InjectRepository(PropertyIncome)
         private readonly incomeRepository: Repository<PropertyIncome>,
+        @InjectRepository(PropertyExpense)
+        private readonly expenseRepository: Repository<PropertyExpense>,
     ) {}
 
     async create(createDto: CreatePropertyDto, organizationId: string) {
@@ -100,7 +116,7 @@ export class PropertiesService {
         const qb = this.incomeRepository
             .createQueryBuilder('income')
             .where('income.property_id = :propertyId', { propertyId });
-        this.applyDateRange(qb, query);
+        this.applyIncomeDateRange(qb, query);
 
         const raw = await qb
             .select('COALESCE(SUM(income.amount), 0)', 'total')
@@ -144,23 +160,184 @@ export class PropertiesService {
         return { id: incomeId };
     }
 
+    async createExpense(propertyId: string, organizationId: string, createDto: CreatePropertyExpenseDto) {
+        await this.findOne(propertyId, organizationId);
+
+        const expense = this.expenseRepository.create({
+            propertyId,
+            amount: createDto.amount.toFixed(2),
+            expenseDate: createDto.expenseDate,
+            expenseCategory: createDto.expenseCategory,
+            description: createDto.description.trim(),
+        });
+
+        const saved = await this.expenseRepository.save(expense);
+        return this.mapExpense(saved);
+    }
+
+    async findExpenses(propertyId: string, organizationId: string) {
+        await this.findOne(propertyId, organizationId);
+        const rows = await this.expenseRepository.find({
+            where: { propertyId },
+            order: { expenseDate: 'ASC', createdAt: 'ASC' },
+        });
+        return rows.map((e) => this.mapExpense(e));
+    }
+
+    async updateExpense(
+        propertyId: string,
+        organizationId: string,
+        expenseId: string,
+        updateDto: UpdatePropertyExpenseDto,
+    ) {
+        await this.findOne(propertyId, organizationId);
+        const expense = await this.expenseRepository.findOne({ where: { id: expenseId, propertyId } });
+        if (!expense) throw new NotFoundException('Property expense not found');
+
+        if (updateDto.amount !== undefined) expense.amount = updateDto.amount.toFixed(2);
+        if (updateDto.expenseDate !== undefined) expense.expenseDate = updateDto.expenseDate;
+        if (updateDto.expenseCategory !== undefined) expense.expenseCategory = updateDto.expenseCategory;
+        if (updateDto.description !== undefined) expense.description = updateDto.description.trim();
+
+        const updated = await this.expenseRepository.save(expense);
+        return this.mapExpense(updated);
+    }
+
+    async removeExpense(propertyId: string, organizationId: string, expenseId: string) {
+        await this.findOne(propertyId, organizationId);
+        const expense = await this.expenseRepository.findOne({ where: { id: expenseId, propertyId } });
+        if (!expense) throw new NotFoundException('Property expense not found');
+
+        await this.expenseRepository.remove(expense);
+        return { id: expenseId };
+    }
+
+    async getBalance(propertyId: string, organizationId: string, query: PropertyBalanceQueryDto) {
+        await this.findOne(propertyId, organizationId);
+
+        const incQb = this.incomeRepository
+            .createQueryBuilder('income')
+            .where('income.property_id = :propertyId', { propertyId });
+        this.applyIncomeDateRange(incQb, query);
+        const incRaw = await incQb
+            .select('COALESCE(SUM(income.amount), 0)', 'total')
+            .addSelect('COUNT(*)', 'count')
+            .getRawOne<{ total: string; count: string }>();
+
+        const expQb = this.expenseRepository
+            .createQueryBuilder('exp')
+            .where('exp.property_id = :propertyId', { propertyId });
+        this.applyExpenseDateRange(expQb, query);
+        const expRaw = await expQb
+            .select('COALESCE(SUM(exp.amount), 0)', 'total')
+            .addSelect('COUNT(*)', 'count')
+            .getRawOne<{ total: string; count: string }>();
+
+        const totalIncomes = Number(incRaw?.total ?? '0');
+        const totalExpenses = Number(expRaw?.total ?? '0');
+
+        return {
+            propertyId,
+            startDate: query.startDate ?? null,
+            endDate: query.endDate ?? null,
+            totalIncomes,
+            totalExpenses,
+            balance: totalIncomes - totalExpenses,
+            incomeCount: Number(incRaw?.count ?? '0'),
+            expenseCount: Number(expRaw?.count ?? '0'),
+        };
+    }
+
+    async getExpenseReport(propertyId: string, organizationId: string, query: PropertyExpenseReportQueryDto) {
+        await this.findOne(propertyId, organizationId);
+
+        const qb = this.expenseRepository
+            .createQueryBuilder('exp')
+            .where('exp.property_id = :propertyId', { propertyId })
+            .orderBy('exp.expense_date', 'ASC')
+            .addOrderBy('exp.createdAt', 'ASC');
+        this.applyExpenseDateRange(qb, query);
+
+        const rows = await qb.getMany();
+        const mapped = rows.map((r) => this.mapExpense(r));
+
+        const order: PropertyExpenseCategory[] = [
+            PropertyExpenseCategory.MANTENIMIENTO,
+            PropertyExpenseCategory.IMPUESTO,
+            PropertyExpenseCategory.SERVICIO,
+        ];
+        const byCat = new Map<PropertyExpenseCategory, typeof mapped>();
+        for (const m of mapped) {
+            const k = m.expenseCategory;
+            if (!byCat.has(k)) byCat.set(k, []);
+            byCat.get(k)!.push(m);
+        }
+
+        const categories = order
+            .filter((c) => byCat.has(c))
+            .map((category) => {
+                const items = byCat.get(category)!;
+                const subtotal = items.reduce((s, i) => s + i.amount, 0);
+                return { category, subtotal, count: items.length, items };
+            });
+
+        return {
+            propertyId,
+            startDate: query.startDate ?? null,
+            endDate: query.endDate ?? null,
+            categories,
+        };
+    }
+
     async buildPropertyRecordsPdfBuffer(
         propertyId: string,
         organizationId: string,
+        query: PropertyReportPdfQueryDto = {},
     ): Promise<{ buffer: Buffer; filename: string }> {
         const property = await this.findOne(propertyId, organizationId);
-        const incomes = await this.incomeRepository.find({
-            where: { propertyId },
-            order: { incomeDate: 'ASC', createdAt: 'ASC' },
-        });
 
-        const summaryQ = this.incomeRepository
+        const incQ = this.incomeRepository
             .createQueryBuilder('income')
-            .where('income.property_id = :propertyId', { propertyId });
-        const rawTotal = await summaryQ
-            .select('COALESCE(SUM(income.amount), 0)', 'total')
-            .getRawOne<{ total: string }>();
-        const totalAll = Number(rawTotal?.total ?? '0');
+            .where('income.property_id = :propertyId', { propertyId })
+            .orderBy('income.income_date', 'ASC')
+            .addOrderBy('income.createdAt', 'ASC');
+        this.applyIncomeDateRange(incQ, query);
+        const incomes = await incQ.getMany();
+
+        const expQ = this.expenseRepository
+            .createQueryBuilder('exp')
+            .where('exp.property_id = :propertyId', { propertyId })
+            .orderBy('exp.expense_date', 'ASC')
+            .addOrderBy('exp.createdAt', 'ASC');
+        this.applyExpenseDateRange(expQ, query);
+        const expenses = await expQ.getMany();
+
+        const totalIncomes = incomes.reduce((s, r) => s + Number(r.amount), 0);
+        const totalExpenses = expenses.reduce((s, r) => s + Number(r.amount), 0);
+        const balance = totalIncomes - totalExpenses;
+
+        const order: PropertyExpenseCategory[] = [
+            PropertyExpenseCategory.MANTENIMIENTO,
+            PropertyExpenseCategory.IMPUESTO,
+            PropertyExpenseCategory.SERVICIO,
+        ];
+        const byCat = new Map<PropertyExpenseCategory, PropertyExpense[]>();
+        for (const row of expenses) {
+            if (!byCat.has(row.expenseCategory)) byCat.set(row.expenseCategory, []);
+            byCat.get(row.expenseCategory)!.push(row);
+        }
+        const reportCategories = order
+            .filter((c) => byCat.has(c))
+            .map((category) => {
+                const items = byCat.get(category)!;
+                const subtotal = items.reduce((s, i) => s + Number(i.amount), 0);
+                return { category, subtotal, count: items.length };
+            });
+
+        const periodNote =
+            query.startDate || query.endDate
+                ? `Periodo: ${query.startDate ?? '...'} a ${query.endDate ?? '...'}`
+                : 'Periodo: todos los registros';
 
         const buffer = await new Promise<Buffer>((resolve, reject) => {
             const chunks: Buffer[] = [];
@@ -169,39 +346,61 @@ export class PropertiesService {
             doc.on('end', () => resolve(Buffer.concat(chunks)));
             doc.on('error', reject);
 
-            doc.fontSize(18).text('Registros de propiedad', { underline: true });
+            doc.fontSize(18).text('Reporte de propiedad', { underline: true });
             doc.moveDown(0.5);
-            doc.fontSize(11);
+            doc.fontSize(11).fillColor('#000000');
             doc.text(`Codigo: ${property.code}`);
             doc.text(`Titulo: ${property.title}`);
-            if (property.description) {
-                doc.text(`Descripcion: ${property.description}`);
+            doc.fontSize(9).fillColor('#444444').text(periodNote);
+            doc.fillColor('#000000').fontSize(11);
+            doc.moveDown();
+
+            doc.fontSize(12).text('Balance (ingresos - gastos)', { underline: true });
+            doc.moveDown(0.3);
+            doc.fontSize(10);
+            doc.text(`Total ingresos: ${formatCop(totalIncomes)}`);
+            doc.text(`Total gastos: ${formatCop(totalExpenses)}`);
+            doc.fontSize(11).text(`Balance: ${formatCop(balance)}`, { continued: false });
+            doc.moveDown();
+
+            doc.fontSize(12).text('Gastos por categoria (subtotales)', { underline: true });
+            doc.moveDown(0.3);
+            doc.fontSize(10);
+            if (reportCategories.length === 0) {
+                doc.text('Sin gastos en el periodo.');
+            } else {
+                for (const cat of reportCategories) {
+                    doc.text(`${EXPENSE_CATEGORY_LABEL[cat.category]}: ${formatCop(cat.subtotal)} (${cat.count} mov.)`);
+                }
             }
-            doc.text(`Tipo: ${property.propertyType}`);
-            doc.text(`Estado comercial: ${property.commercialStatus}`);
-            doc.text(`Publicacion: ${property.publicationStatus}`);
             doc.moveDown();
 
-            doc.fontSize(12).text('Resumen de ingresos', { underline: true });
+            doc.fontSize(12).text('Detalle de gastos', { underline: true });
             doc.moveDown(0.3);
-            doc.fontSize(10).text(`Total acumulado (todos los registros): ${formatCop(totalAll)}`);
-            doc.text(`Cantidad de movimientos: ${incomes.length}`);
+            if (expenses.length === 0) {
+                doc.fontSize(10).text('No hay gastos.');
+            } else {
+                doc.fontSize(9);
+                expenses.forEach((row, index) => {
+                    if (doc.y > 720) doc.addPage();
+                    const line = `${index + 1}. ${row.expenseDate} | ${EXPENSE_CATEGORY_LABEL[row.expenseCategory]} | ${formatCop(Number(row.amount))} | ${row.description.replace(/\s+/g, ' ')}`;
+                    doc.text(line, { width: 500 });
+                    doc.moveDown(0.22);
+                });
+            }
             doc.moveDown();
 
-            doc.fontSize(12).text('Detalle cronologico', { underline: true });
+            doc.fontSize(12).text('Detalle de ingresos', { underline: true });
             doc.moveDown(0.3);
-
             if (incomes.length === 0) {
-                doc.fontSize(10).text('No hay ingresos registrados.');
+                doc.fontSize(10).text('No hay ingresos.');
             } else {
                 doc.fontSize(9);
                 incomes.forEach((row, index) => {
-                    if (doc.y > 720) {
-                        doc.addPage();
-                    }
+                    if (doc.y > 720) doc.addPage();
                     const line = `${index + 1}. ${row.incomeDate} | ${row.incomeType} | ${formatCop(Number(row.amount))} | ${row.description.replace(/\s+/g, ' ')}`;
                     doc.text(line, { width: 500 });
-                    doc.moveDown(0.25);
+                    doc.moveDown(0.22);
                 });
             }
 
@@ -212,16 +411,24 @@ export class PropertiesService {
         });
 
         const safeCode = property.code.replace(/[^\w-]+/g, '_');
-        return { buffer, filename: `propiedad-${safeCode}-registros.pdf` };
+        return { buffer, filename: `propiedad-${safeCode}-reporte.pdf` };
     }
 
-    private applyDateRange(qb: SelectQueryBuilder<PropertyIncome>, query: PropertyIncomeSummaryQueryDto) {
+    private applyIncomeDateRange(qb: SelectQueryBuilder<PropertyIncome>, query: DateRangeFilter) {
         if (query.startDate) {
             qb.andWhere('income.income_date >= :startDate', { startDate: query.startDate });
         }
-
         if (query.endDate) {
             qb.andWhere('income.income_date <= :endDate', { endDate: query.endDate });
+        }
+    }
+
+    private applyExpenseDateRange(qb: SelectQueryBuilder<PropertyExpense>, query: DateRangeFilter) {
+        if (query.startDate) {
+            qb.andWhere('exp.expense_date >= :startDate', { startDate: query.startDate });
+        }
+        if (query.endDate) {
+            qb.andWhere('exp.expense_date <= :endDate', { endDate: query.endDate });
         }
     }
 
@@ -235,6 +442,19 @@ export class PropertiesService {
             description: income.description,
             createdAt: income.createdAt,
             updatedAt: income.updatedAt,
+        };
+    }
+
+    private mapExpense(expense: PropertyExpense) {
+        return {
+            id: expense.id,
+            propertyId: expense.propertyId,
+            amount: Number(expense.amount),
+            expenseDate: expense.expenseDate,
+            expenseCategory: expense.expenseCategory,
+            description: expense.description,
+            createdAt: expense.createdAt,
+            updatedAt: expense.updatedAt,
         };
     }
 }

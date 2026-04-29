@@ -483,6 +483,7 @@ export default function IncomesPage() {
                 <div className="footer-links">
                     <Link href="/">Volver al inicio</Link>
                     <Link href="/properties">Propiedades</Link>
+                    <Link href="/finanzas">Finanzas</Link>
                     <Link href="/me">Perfil</Link>
                 </div>
             </section>

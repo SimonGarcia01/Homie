@@ -365,6 +365,7 @@ export default function PropertiesPage() {
                 <div className="footer-links">
                     <Link href="/">Inicio</Link>
                     <Link href="/incomes">Ingresos</Link>
+                    <Link href="/finanzas">Finanzas</Link>
                     <Link href="/me">Perfil</Link>
                 </div>
             </section>

@@ -11,6 +11,7 @@ import { Visit } from '../../visits/entities/visit.entity';
 
 import { PropertyAgent } from './property-agent.entity';
 import { PropertyAmenity } from './property-amenity.entity';
+import { PropertyExpense } from './property-expense.entity';
 import { PropertyFeature } from './property-feature.entity';
 import { PropertyIncome } from './property-income.entity';
 import { PropertyImage } from './property-image.entity';
@@ -100,4 +101,7 @@ export class Property extends TimestampEntity {
 
     @OneToMany(() => PropertyIncome, (propertyIncome) => propertyIncome.property)
     incomes?: PropertyIncome[];
+
+    @OneToMany(() => PropertyExpense, (propertyExpense) => propertyExpense.property)
+    expenses?: PropertyExpense[];
 }
