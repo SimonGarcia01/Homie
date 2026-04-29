@@ -8,6 +8,7 @@ import { PropertyCommercialStatus, PropertyExpenseCategory, PropertyPublicationS
 import { CreatePropertyExpenseDto } from './dto/create-property-expense.dto';
 import { CreatePropertyIncomeDto } from './dto/create-property-income.dto';
 import { CreatePropertyDto } from './dto/create-property.dto';
+import { PublicPropertyFilterDto } from './dto/public-property-filter.dto';
 import { PropertyBalanceQueryDto } from './dto/property-balance-query.dto';
 import { PropertyExpenseReportQueryDto } from './dto/property-expense-report-query.dto';
 import { PropertyIncomeSummaryQueryDto } from './dto/property-income-summary-query.dto';
@@ -486,6 +487,80 @@ export class PropertiesService {
             createdAt: expense.createdAt,
             updatedAt: expense.updatedAt,
         };
+    }
+
+    async findPublicProperties(filter: PublicPropertyFilterDto) {
+        const { propertyType, minPrice, maxPrice, city, country, page = 1, limit = 12 } = filter;
+        const skip = (page - 1) * limit;
+
+        const queryBuilder = this.repository
+            .createQueryBuilder('property')
+            .leftJoinAndSelect('property.images', 'images')
+            .leftJoinAndSelect('property.location', 'location')
+            .leftJoinAndSelect('property.rentalDetail', 'rentalDetail')
+            .leftJoinAndSelect('property.feature', 'feature')
+            .where('property.commercialStatus = :status', { status: PropertyCommercialStatus.AVAILABLE })
+            .andWhere('property.publicationStatus = :pubStatus', { pubStatus: PropertyPublicationStatus.PUBLISHED })
+            .andWhere('property.isVisible = :isVisible', { isVisible: true });
+
+        if (propertyType) {
+            queryBuilder.andWhere('property.propertyType = :propertyType', { propertyType });
+        }
+
+        if (minPrice !== undefined) {
+            queryBuilder.andWhere('CAST(rentalDetail.monthlyRent AS DECIMAL) >= :minPrice', { minPrice });
+        }
+
+        if (maxPrice !== undefined) {
+            queryBuilder.andWhere('CAST(rentalDetail.monthlyRent AS DECIMAL) <= :maxPrice', { maxPrice });
+        }
+
+        if (city) {
+            queryBuilder.andWhere('location.city ILIKE :city', { city: `%${city}%` });
+        }
+
+        if (country) {
+            queryBuilder.andWhere('location.country ILIKE :country', { country: `%${country}%` });
+        }
+
+        const [data, total] = await queryBuilder
+            .orderBy('property.updatedAt', 'DESC')
+            .skip(skip)
+            .take(limit)
+            .getManyAndCount();
+
+        const propertiesWithCover = data.map((property) => this.attachCover(property));
+
+        return {
+            data: propertiesWithCover,
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+        };
+    }
+
+    async findPublicPropertyById(id: string) {
+        const property = await this.repository.findOne({
+            where: { 
+                id,
+                commercialStatus: PropertyCommercialStatus.AVAILABLE,
+                publicationStatus: PropertyPublicationStatus.PUBLISHED,
+                isVisible: true,
+            },
+            relations: { 
+                images: true, 
+                rentalDetail: true, 
+                location: true,
+                feature: true,
+            },
+        });
+
+        if (!property) {
+            throw new NotFoundException('Property not found or not available');
+        }
+
+        return this.attachCover(property);
     }
 
     private attachCover(property: Property): Property & { coverImageUrl: string | null } {
