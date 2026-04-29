@@ -14,6 +14,7 @@ import { PropertiesController } from './properties.controller';
 import { PropertiesService } from './properties.service';
 import { PropertyImagesController } from './property-images.controller';
 import { PropertyImagesService } from './property-images.service';
+import { PublicPropertiesController } from './public-properties.controller';
 
 @Module({
     imports: [
@@ -29,7 +30,7 @@ import { PropertyImagesService } from './property-images.service';
             PropertyAgent,
         ]),
     ],
-    controllers: [PropertiesController, PropertyImagesController],
+    controllers: [PropertiesController, PropertyImagesController, PublicPropertiesController],
     providers: [PropertiesService, PropertyImagesService],
     exports: [PropertiesService, PropertyImagesService],
 })
