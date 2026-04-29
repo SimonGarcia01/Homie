@@ -1,6 +1,16 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsBoolean, IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import {
+    IsBoolean,
+    IsEnum,
+    IsNumber,
+    IsOptional,
+    IsPositive,
+    IsString,
+    IsUUID,
+    MaxLength,
+    MinLength,
+} from 'class-validator';
 
 import { PropertyCommercialStatus, PropertyPublicationStatus, PropertyType } from '../../../common/enums';
 
@@ -27,6 +37,36 @@ export class CreatePropertyDto {
     @ApiProperty({ enum: PropertyType })
     @IsEnum(PropertyType)
     propertyType!: PropertyType;
+
+    @ApiProperty({ example: 1500000, description: 'Monthly rent (price) in the chosen currency' })
+    @Type(() => Number)
+    @IsNumber({ maxDecimalPlaces: 2 })
+    @IsPositive()
+    monthlyRent!: number;
+
+    @ApiPropertyOptional({ example: 'COP', default: 'COP', maxLength: 10 })
+    @IsOptional()
+    @IsString()
+    @MaxLength(10)
+    currency?: string;
+
+    @ApiProperty({ example: 'Cali', maxLength: 120 })
+    @IsString()
+    @MinLength(1)
+    @MaxLength(120)
+    city!: string;
+
+    @ApiPropertyOptional({ example: 'Colombia', default: 'Colombia', maxLength: 80 })
+    @IsOptional()
+    @IsString()
+    @MaxLength(80)
+    country?: string;
+
+    @ApiPropertyOptional({ example: 'Av. Roosevelt 23-45', maxLength: 255 })
+    @IsOptional()
+    @IsString()
+    @MaxLength(255)
+    address?: string;
 
     @ApiPropertyOptional({ enum: PropertyCommercialStatus, default: PropertyCommercialStatus.AVAILABLE })
     @IsOptional()

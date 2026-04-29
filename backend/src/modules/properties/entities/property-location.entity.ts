@@ -18,6 +18,9 @@ export class PropertyLocation {
     @Column({ length: 120 })
     city!: string;
 
+    @Column({ length: 255, nullable: true })
+    address?: string | null;
+
     @Column({
         type: 'enum',
         enum: LocationPrecision,
