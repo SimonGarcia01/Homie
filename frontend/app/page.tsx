@@ -24,6 +24,9 @@ export default function HomePage() {
                     <Link href="/me" className="btn btn-secondary">
                         Try Get Me
                     </Link>
+                    <Link href="/properties" className="btn btn-secondary">
+                        Propiedades · HU-02
+                    </Link>
                 </div>
 
                 <div className="footer-links">
