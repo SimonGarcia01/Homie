@@ -29,6 +29,7 @@ export type Property = {
     isVisible: boolean;
     createdAt: string;
     updatedAt: string;
+    coverImageUrl?: string | null;
 };
 
 export type CreatePropertyPayload = {

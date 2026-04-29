@@ -53,17 +53,22 @@ export class PropertiesService {
         return this.repository.save(entity);
     }
 
-    findAll(organizationId: string) {
-        return this.repository.find({
+    async findAll(organizationId: string) {
+        const properties = await this.repository.find({
             where: { organizationId },
+            relations: { images: true },
             order: { updatedAt: 'DESC' },
         });
+        return properties.map((property) => this.attachCover(property));
     }
 
     async findOne(id: string, organizationId: string) {
-        const entity = await this.repository.findOne({ where: { id, organizationId } });
+        const entity = await this.repository.findOne({
+            where: { id, organizationId },
+            relations: { images: true },
+        });
         if (!entity) throw new NotFoundException('Property not found');
-        return entity;
+        return this.attachCover(entity);
     }
 
     async update(id: string, organizationId: string, updateDto: UpdatePropertyDto) {
@@ -456,6 +461,11 @@ export class PropertiesService {
             createdAt: expense.createdAt,
             updatedAt: expense.updatedAt,
         };
+    }
+
+    private attachCover(property: Property): Property & { coverImageUrl: string | null } {
+        const cover = property.images?.find((image) => image.isCover) ?? property.images?.[0] ?? null;
+        return Object.assign(property, { coverImageUrl: cover?.imageUrl ?? null });
     }
 }
 

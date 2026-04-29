@@ -328,6 +328,7 @@ export default function PropertiesPage() {
                                             <th>Comercial</th>
                                             <th>Pub.</th>
                                             <th>Ver</th>
+                                            <th>Imágenes</th>
                                             <th>PDF registros</th>
                                         </tr>
                                     </thead>
@@ -340,6 +341,14 @@ export default function PropertiesPage() {
                                                 <td>{labelOf(COMMERCIAL, p.commercialStatus)}</td>
                                                 <td>{labelOf(PUBLICATION, p.publicationStatus)}</td>
                                                 <td>{p.isVisible ? 'Si' : 'No'}</td>
+                                                <td>
+                                                    <Link
+                                                        href={`/properties/${p.id}/images`}
+                                                        className="btn btn-secondary btn--compact"
+                                                    >
+                                                        Galería
+                                                    </Link>
+                                                </td>
                                                 <td>
                                                     <button
                                                         type="button"

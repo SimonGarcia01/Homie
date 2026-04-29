@@ -7,6 +7,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
+import { StorageModule } from './common/storage/storage.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { AmenitiesModule } from './modules/amenities/amenities.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -51,6 +52,7 @@ import { VisitsModule } from './modules/visits/visits.module';
                 };
             },
         }),
+        StorageModule,
         OrganizationsModule,
         RolesModule,
         UsersModule,
