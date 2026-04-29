@@ -53,6 +53,9 @@ import { Role } from '../modules/roles/entities/role.entity';
 import { TaskItem } from '../modules/tasks/entities/task.entity';
 import { User } from '../modules/users/entities/user.entity';
 import { Visit } from '../modules/visits/entities/visit.entity';
+import { PropertyIncome } from '../modules/properties/entities/property-income.entity';
+import { PropertyExpense } from '../modules/properties/entities/property-expense.entity';
+import { PropertyIncomeType, PropertyExpenseCategory } from '../common/enums';
 
 @Injectable()
 export class SeedService {
@@ -117,7 +120,12 @@ export class SeedService {
         private readonly rentalEvaluationsRepo: Repository<RentalEvaluation>,
         @InjectRepository(RentalContract)
         private readonly rentalContractsRepo: Repository<RentalContract>,
+        @InjectRepository(PropertyIncome)
+        private readonly propertyIncomesRepo: Repository<PropertyIncome>,
+        @InjectRepository(PropertyExpense)
+        private readonly propertyExpensesRepo: Repository<PropertyExpense>,
     ) {}
+
 
     async run() {
         const organization = await this.ensureOrganization();
@@ -191,6 +199,9 @@ export class SeedService {
         await this.ensurePropertyAmenity(property.id, amenity.id);
         await this.ensurePropertyAgent(property.id, agentUser.id, 'showing_agent');
 
+        // Financial data for BOHO-001
+        await this.ensureIncomesAndExpenses(property.id);
+
         // Propiedad 2 - Casa en el norte
         const property2 = await this.ensureProperty({
             organizationId: organization.id,
@@ -208,6 +219,8 @@ export class SeedService {
         await this.ensurePropertyFeature2(property2.id);
         await this.ensurePropertyAmenity(property2.id, amenity.id);
         await this.ensurePropertyAgent(property2.id, agentUser.id, 'showing_agent');
+        
+        await this.ensureIncomesAndExpenses(property2.id);
 
         // Propiedad 3 - Estudio en el centro
         const property3 = await this.ensureProperty({
@@ -227,6 +240,8 @@ export class SeedService {
         await this.ensurePropertyAmenity(property3.id, amenity.id);
         await this.ensurePropertyAgent(property3.id, agentUser.id, 'showing_agent');
 
+        await this.ensureIncomesAndExpenses(property3.id);
+
         // Propiedad 4 - Apartamento de lujo
         const property4 = await this.ensureProperty({
             organizationId: organization.id,
@@ -244,6 +259,8 @@ export class SeedService {
         await this.ensurePropertyFeature4(property4.id);
         await this.ensurePropertyAmenity(property4.id, amenity.id);
         await this.ensurePropertyAgent(property4.id, agentUser.id, 'showing_agent');
+
+        await this.ensureIncomesAndExpenses(property4.id);
 
         const lead = await this.ensureLead({
             organizationId: organization.id,
@@ -316,6 +333,46 @@ export class SeedService {
                 { email: 'agent@boho.test', password: 'Agent1234!' },
             ],
         };
+    }
+
+    private async ensureIncomesAndExpenses(propertyId: string) {
+        const today = new Date();
+        const lastMonth = new Date();
+        lastMonth.setMonth(today.getMonth() - 1);
+
+        const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+        // Incomes
+        const incomes = [
+            { amount: '2200000', incomeDate: formatDate(today), incomeType: PropertyIncomeType.ARRIENDO, description: 'Pago arriendo mes actual' },
+            { amount: '2200000', incomeDate: formatDate(lastMonth), incomeType: PropertyIncomeType.ARRIENDO, description: 'Pago arriendo mes anterior' },
+        ];
+
+        for (const inc of incomes) {
+            const existing = await this.propertyIncomesRepo.findOne({
+                where: { propertyId, incomeDate: inc.incomeDate, amount: inc.amount },
+            });
+            if (!existing) {
+                await this.propertyIncomesRepo.save(this.propertyIncomesRepo.create({ ...inc, propertyId }));
+            }
+        }
+
+        // Expenses
+        const expenses = [
+            { amount: '150000', expenseDate: formatDate(today), expenseCategory: PropertyExpenseCategory.MANTENIMIENTO, description: 'Reparación grifo cocina' },
+            { amount: '45000', expenseDate: formatDate(today), expenseCategory: PropertyExpenseCategory.SERVICIO, description: 'Servicio de agua' },
+            { amount: '850000', expenseDate: formatDate(lastMonth), expenseCategory: PropertyExpenseCategory.IMPUESTO, description: 'Impuesto predial cuota 1' },
+            { amount: '120000', expenseDate: formatDate(lastMonth), expenseCategory: PropertyExpenseCategory.MANTENIMIENTO, description: 'Limpieza general' },
+        ];
+
+        for (const exp of expenses) {
+            const existing = await this.propertyExpensesRepo.findOne({
+                where: { propertyId, expenseDate: exp.expenseDate, amount: exp.amount, description: exp.description },
+            });
+            if (!existing) {
+                await this.propertyExpensesRepo.save(this.propertyExpensesRepo.create({ ...exp, propertyId }));
+            }
+        }
     }
 
     private async ensureOrganization() {
