@@ -123,28 +123,38 @@ export default function ReportsPage() {
                         <h1 className="title">Reportes de Gestión</h1>
                     </div>
                     <div className="actions">
-                        <button onClick={exportToExcel} className="btn btn-primary btn--compact" disabled={loading}>
+                        <button
+                            type="button"
+                            onClick={exportToExcel}
+                            className="btn btn-primary btn--compact"
+                            disabled={loading}
+                        >
                             Exportar Excel
                         </button>
-                        <Link href="/me" className="btn btn-ghost btn--compact">Volver</Link>
+                        <Link href="/me" className="btn btn-ghost btn--compact">
+                            Volver
+                        </Link>
                     </div>
                 </div>
 
                 <div className="chip-row">
-                    <button 
-                        onClick={() => setActiveTab('incomes')} 
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('incomes')}
                         className={`chip ${activeTab === 'incomes' ? 'btn-primary' : ''}`}
                     >
                         Ingresos Mensuales
                     </button>
-                    <button 
-                        onClick={() => setActiveTab('availability')} 
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('availability')}
                         className={`chip ${activeTab === 'availability' ? 'btn-primary' : ''}`}
                     >
                         Propiedades Disponibles
                     </button>
-                    <button 
-                        onClick={() => setActiveTab('expenses')} 
+                    <button
+                        type="button"
+                        onClick={() => setActiveTab('expenses')}
                         className={`chip ${activeTab === 'expenses' ? 'btn-primary' : ''}`}
                     >
                         Gastos por Propiedad
@@ -209,25 +219,33 @@ export default function ReportsPage() {
                         <div className="stack">
                             <div className="income-filters">
                                 <div className="field">
-                                    <label className="field-label">Fecha Inicio</label>
-                                    <input 
-                                        type="date" 
-                                        className="field-input" 
-                                        value={startDate} 
+                                    <label className="field-label" htmlFor="report-start-date">
+                                        Fecha Inicio
+                                    </label>
+                                    <input
+                                        id="report-start-date"
+                                        type="date"
+                                        className="field-input"
+                                        value={startDate}
                                         onChange={e => setStartDate(e.target.value)}
                                     />
                                 </div>
                                 <div className="field">
-                                    <label className="field-label">Fecha Fin</label>
-                                    <input 
-                                        type="date" 
-                                        className="field-input" 
-                                        value={endDate} 
+                                    <label className="field-label" htmlFor="report-end-date">
+                                        Fecha Fin
+                                    </label>
+                                    <input
+                                        id="report-end-date"
+                                        type="date"
+                                        className="field-input"
+                                        value={endDate}
                                         onChange={e => setEndDate(e.target.value)}
                                     />
                                 </div>
                             </div>
-                            <button onClick={handleFilterExpenses} className="btn btn-secondary">Filtrar Gastos</button>
+                            <button type="button" onClick={handleFilterExpenses} className="btn btn-secondary">
+                                Filtrar Gastos
+                            </button>
                             
                             <div className="table-scroll report-block">
                                 {expensesData.length > 0 ? (

@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
@@ -49,19 +50,37 @@ interface FilterState {
   country: string;
 }
 
+const INITIAL_FILTERS: FilterState = {
+  propertyType: '',
+  minPrice: '',
+  maxPrice: '',
+  city: '',
+  country: '',
+};
+
+async function getPublicProperties(filters: FilterState, page: number = 1): Promise<PropertyListResponse> {
+  const params = new URLSearchParams({
+    page: page.toString(),
+    limit: '12',
+    ...(filters.propertyType && { propertyType: filters.propertyType }),
+    ...(filters.minPrice && { minPrice: filters.minPrice }),
+    ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
+    ...(filters.city && { city: filters.city }),
+    ...(filters.country && { country: filters.country }),
+  });
+
+  const response = await fetch(`/api/public/properties?${params}`);
+  if (!response.ok) throw new Error('Failed to fetch properties');
+  return response.json();
+}
+
 export default function CatalogoPage() {
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [total, setTotal] = useState(0);
-  const [filters, setFilters] = useState<FilterState>({
-    propertyType: '',
-    minPrice: '',
-    maxPrice: '',
-    city: '',
-    country: '',
-  });
+  const [filters, setFilters] = useState<FilterState>(INITIAL_FILTERS);
 
   const propertyTypes = [
     { value: '', label: 'Todos' },
@@ -77,20 +96,7 @@ export default function CatalogoPage() {
   const fetchProperties = async (page: number = 1) => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '12',
-        ...(filters.propertyType && { propertyType: filters.propertyType }),
-        ...(filters.minPrice && { minPrice: filters.minPrice }),
-        ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
-        ...(filters.city && { city: filters.city }),
-        ...(filters.country && { country: filters.country }),
-      });
-
-      const response = await fetch(`/api/public/properties?${params}`);
-      if (!response.ok) throw new Error('Failed to fetch properties');
-      
-      const data: PropertyListResponse = await response.json();
+      const data = await getPublicProperties(filters, page);
       setProperties(data.data);
       setCurrentPage(data.page);
       setTotalPages(data.totalPages);
@@ -103,7 +109,24 @@ export default function CatalogoPage() {
   };
 
   useEffect(() => {
-    fetchProperties();
+    let cancelled = false;
+    getPublicProperties(INITIAL_FILTERS).then(
+      (data) => {
+        if (cancelled) return;
+        setProperties(data.data);
+        setCurrentPage(data.page);
+        setTotalPages(data.totalPages);
+        setTotal(data.total);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching properties:', error);
+        if (!cancelled) setLoading(false);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const handleFilterChange = (field: keyof FilterState, value: string) => {
@@ -241,6 +264,7 @@ export default function CatalogoPage() {
             </div>
 
             <button
+              type="button"
               onClick={handleSearch}
               className="btn btn-primary"
             >
@@ -273,11 +297,10 @@ export default function CatalogoPage() {
                       <img
                         src={property.coverImageUrl}
                         alt={property.title}
-                        className="w-full h-48 object-cover"
                       />
                     ) : (
-                      <div className="w-full h-48 bg-gray-200 flex items-center justify-center">
-                        <span className="text-gray-400">Sin imagen</span>
+                      <div className="image-placeholder">
+                        <span>Sin imagen</span>
                       </div>
                     )}
                     <div className="property-card-badge">
@@ -315,6 +338,7 @@ export default function CatalogoPage() {
           {!loading && totalPages > 1 && (
             <div className="pagination-controls">
               <button
+                type="button"
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
                 className="btn btn-secondary"
@@ -327,6 +351,7 @@ export default function CatalogoPage() {
                   const page = i + 1;
                   return (
                     <button
+                      type="button"
                       key={page}
                       onClick={() => handlePageChange(page)}
                       className={`pagination-number ${
@@ -340,6 +365,7 @@ export default function CatalogoPage() {
               </div>
               
               <button
+                type="button"
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
                 className="btn btn-secondary"

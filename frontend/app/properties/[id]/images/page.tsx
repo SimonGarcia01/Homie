@@ -1,5 +1,6 @@
 'use client';
 
+/* eslint-disable @next/next/no-img-element */
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
@@ -145,12 +146,12 @@ export default function PropertyImagesPage() {
 
     return (
         <main className="app-shell">
-            <section className="panel panel--wide stagger" style={{ width: 'min(100%, 72rem)' }}>
+            <section className="panel panel--wide stagger">
                 <div className="top-row">
                     <div>
                         <p className="kicker">HU-02 · Galería</p>
                         <h1 className="title">Imágenes de la propiedad</h1>
-                        <p className="subtitle" style={{ marginTop: 8 }}>
+                        <p className="subtitle">
                             Property ID: <span className="code-inline">{propertyId}</span>
                         </p>
                     </div>
@@ -159,15 +160,17 @@ export default function PropertyImagesPage() {
                     </Link>
                 </div>
 
-                <div className="info-callout" style={{ marginTop: 16 }}>
+                <div className="info-callout">
                     Formatos aceptados: <strong>{ALLOWED_IMAGE_EXTENSIONS_LABEL}</strong>. Tamaño máximo:{' '}
                     <strong>{MAX_IMAGE_MB} MB</strong> por imagen.
                 </div>
 
-                <div className="stack stack-lg" style={{ marginTop: 20 }}>
-                    <label className="btn btn-primary" htmlFor="property-image-upload" style={{ width: 'fit-content' }}>
-                        Seleccionar imágenes
-                    </label>
+                <div className="upload-panel">
+                    <div className="upload-actions">
+                        <label className="btn btn-primary btn--fit" htmlFor="property-image-upload">
+                            Seleccionar imágenes
+                        </label>
+                    </div>
                     <input
                         id="property-image-upload"
                         ref={fileInputRef}
@@ -176,27 +179,19 @@ export default function PropertyImagesPage() {
                         multiple
                         onChange={handleFiles}
                         disabled={uploadState.type === 'uploading' || !propertyId}
-                        style={{ display: 'none' }}
+                        className="file-input-hidden"
                     />
 
                     {uploadState.message && (
-                        <p
-                            className={
-                                uploadState.type === 'error'
-                                    ? 'alert alert-error'
-                                    : uploadState.type === 'success'
-                                        ? 'alert alert-info'
-                                        : 'alert alert-info'
-                            }
-                        >
+                        <p className={uploadState.type === 'error' ? 'alert alert-error' : 'alert alert-info'}>
                             {uploadState.message}
                         </p>
                     )}
 
                     {rejected.length > 0 && (
-                        <div className="alert alert-error" style={{ display: 'block' }}>
+                        <div className="alert alert-error">
                             <strong>Archivos rechazados:</strong>
-                            <ul style={{ margin: '6px 0 0 18px' }}>
+                            <ul className="rejected-list">
                                 {rejected.map((item, index) => (
                                     <li key={`${item.filename}-${index}`}>
                                         <span className="code-inline">{item.filename}</span> — {item.reason}
@@ -207,17 +202,17 @@ export default function PropertyImagesPage() {
                     )}
                 </div>
 
-                <hr style={{ margin: '24px 0', border: 'none', borderTop: '1px solid rgba(0,0,0,0.08)' }} />
+                <hr className="divider" />
 
                 {loading ? (
                     <p className="alert alert-info">Cargando imágenes...</p>
                 ) : loadError ? (
                     <p className="alert alert-error">{loadError}</p>
                 ) : images.length === 0 ? (
-                    <p className="alert alert-info">Aún no hay imágenes para esta propiedad.</p>
+                    <p className="empty-state">Aún no hay imágenes para esta propiedad.</p>
                 ) : (
                     <>
-                        <p className="subtitle" style={{ marginBottom: 12 }}>
+                        <p className="subtitle">
                             {images.length} imagen(es).{' '}
                             {cover ? (
                                 <>
@@ -228,85 +223,24 @@ export default function PropertyImagesPage() {
                             )}
                         </p>
 
-                        <div
-                            style={{
-                                display: 'grid',
-                                gap: 16,
-                                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                            }}
-                        >
+                        <div className="gallery-grid">
                             {images.map((image) => (
-                                <article
-                                    key={image.id}
-                                    style={{
-                                        border: image.isCover
-                                            ? '2px solid var(--primary)'
-                                            : '1px solid rgba(0,0,0,0.08)',
-                                        borderRadius: 'var(--radius-lg)',
-                                        background: 'rgba(255,255,255,0.85)',
-                                        overflow: 'hidden',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                    }}
-                                >
-                                    <div
-                                        style={{
-                                            position: 'relative',
-                                            width: '100%',
-                                            aspectRatio: '4 / 3',
-                                            background: '#000',
-                                        }}
-                                    >
-                                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                                        <img
-                                            src={image.url}
-                                            alt={image.originalFilename}
-                                            style={{
-                                                width: '100%',
-                                                height: '100%',
-                                                objectFit: 'cover',
-                                                display: 'block',
-                                            }}
-                                        />
-                                        {image.isCover && (
-                                            <span
-                                                style={{
-                                                    position: 'absolute',
-                                                    top: 8,
-                                                    left: 8,
-                                                    background: 'var(--primary)',
-                                                    color: 'var(--primary-ink)',
-                                                    padding: '4px 10px',
-                                                    borderRadius: 999,
-                                                    fontSize: 12,
-                                                    fontWeight: 600,
-                                                }}
-                                            >
-                                                Portada
-                                            </span>
-                                        )}
+                                <article key={image.id} className={`image-tile ${image.isCover ? 'is-cover' : ''}`}>
+                                    <div className="image-tile-media">
+                                        <img src={image.url} alt={image.originalFilename} />
+                                        {image.isCover && <span className="property-card-badge">Portada</span>}
                                     </div>
-                                    <div style={{ padding: 12, display: 'grid', gap: 6 }}>
-                                        <div
-                                            style={{
-                                                fontWeight: 600,
-                                                fontSize: 13,
-                                                whiteSpace: 'nowrap',
-                                                overflow: 'hidden',
-                                                textOverflow: 'ellipsis',
-                                            }}
-                                            title={image.originalFilename}
-                                        >
+                                    <div className="image-tile-body">
+                                        <p className="image-tile-name" title={image.originalFilename}>
                                             {image.originalFilename}
-                                        </div>
-                                        <div style={{ fontSize: 12, color: 'var(--ink-500)' }}>
+                                        </p>
+                                        <p className="summary-meta">
                                             {formatBytes(image.sizeBytes)} · {image.mimeType}
-                                        </div>
-                                        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                                        </p>
+                                        <div className="image-actions">
                                             <button
                                                 type="button"
-                                                className="btn btn-secondary"
-                                                style={{ flex: 1, padding: '8px 10px', fontSize: 12 }}
+                                                className="btn btn-secondary btn--compact"
                                                 onClick={() => handleSetCover(image.id)}
                                                 disabled={image.isCover || busyImageId === image.id}
                                             >
@@ -314,13 +248,7 @@ export default function PropertyImagesPage() {
                                             </button>
                                             <button
                                                 type="button"
-                                                className="btn btn-ghost"
-                                                style={{
-                                                    flex: 1,
-                                                    padding: '8px 10px',
-                                                    fontSize: 12,
-                                                    color: 'var(--alert-error-ink)',
-                                                }}
+                                                className="btn btn-danger btn--compact"
                                                 onClick={() => handleDelete(image.id)}
                                                 disabled={busyImageId === image.id}
                                             >
