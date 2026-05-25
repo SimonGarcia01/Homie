@@ -1,14 +1,24 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, IsUUID } from 'class-validator';
 
+export class LinkOpportunityPropertyDto {
+    @ApiProperty()
+    @IsUUID()
+    propertyId!: string;
+}
+
 export class CreateOpportunityDto {
-    @ApiProperty({ required: false })
+    @ApiProperty()
+    @IsUUID()
+    leadId!: string;
+
+    @ApiPropertyOptional()
     @IsOptional()
     @IsUUID()
-    organizationId?: string;
+    propertyId?: string;
 
-    @ApiProperty({ required: false })
+    @ApiPropertyOptional({ description: 'Stage key: visita, aplicacion, etc.' })
     @IsOptional()
     @IsString()
-    name?: string;
+    stageKey?: string;
 }

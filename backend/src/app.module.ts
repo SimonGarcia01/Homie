@@ -7,8 +7,10 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { JwtAuthGuard } from './common/auth/jwt-auth.guard';
 import { RolesGuard } from './common/auth/roles.guard';
+import { StorageModule } from './common/storage/storage.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { AmenitiesModule } from './modules/amenities/amenities.module';
+import { AssistantModule } from './modules/assistant/assistant.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { DocumentsModule } from './modules/documents/documents.module';
@@ -20,6 +22,7 @@ import { PropertiesModule } from './modules/properties/properties.module';
 import { RentalApplicationsModule } from './modules/rental-applications/rental-applications.module';
 import { RentalContractsModule } from './modules/rental-contracts/rental-contracts.module';
 import { RentalEvaluationsModule } from './modules/rental-evaluations/rental-evaluations.module';
+import { ReportsModule } from './modules/reports/reports.module';
 import { RolesModule } from './modules/roles/roles.module';
 import { SeedModule } from './scripts/seed.module';
 import { TasksModule } from './modules/tasks/tasks.module';
@@ -50,6 +53,7 @@ import { VisitsModule } from './modules/visits/visits.module';
                 };
             },
         }),
+        StorageModule,
         OrganizationsModule,
         RolesModule,
         UsersModule,
@@ -61,12 +65,14 @@ import { VisitsModule } from './modules/visits/visits.module';
         PropertiesModule,
         OpportunitiesModule,
         ActivitiesModule,
+        AssistantModule,
         TasksModule,
         VisitsModule,
         RentalApplicationsModule,
         DocumentsModule,
         RentalEvaluationsModule,
         RentalContractsModule,
+        ReportsModule,
         SeedModule,
     ],
     controllers: [AppController],

@@ -1,14 +1,40 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsOptional, IsString, IsUUID } from 'class-validator';
+
+import { ActivityType } from '../../../common/enums';
 
 export class CreateActivityDto {
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsUUID()
-    organizationId?: string;
+    @ApiProperty({ enum: ActivityType })
+    @IsEnum(ActivityType)
+    type!: ActivityType;
 
-    @ApiProperty({ required: false })
+    @ApiPropertyOptional()
     @IsOptional()
     @IsString()
-    name?: string;
+    content?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsUUID()
+    contactId?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsUUID()
+    leadId?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsUUID()
+    opportunityId?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsUUID()
+    propertyId?: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsUUID()
+    visitId?: string;
 }

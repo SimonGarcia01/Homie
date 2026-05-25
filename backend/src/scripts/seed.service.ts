@@ -53,6 +53,9 @@ import { Role } from '../modules/roles/entities/role.entity';
 import { TaskItem } from '../modules/tasks/entities/task.entity';
 import { User } from '../modules/users/entities/user.entity';
 import { Visit } from '../modules/visits/entities/visit.entity';
+import { PropertyIncome } from '../modules/properties/entities/property-income.entity';
+import { PropertyExpense } from '../modules/properties/entities/property-expense.entity';
+import { PropertyIncomeType, PropertyExpenseCategory } from '../common/enums';
 
 @Injectable()
 export class SeedService {
@@ -117,7 +120,12 @@ export class SeedService {
         private readonly rentalEvaluationsRepo: Repository<RentalEvaluation>,
         @InjectRepository(RentalContract)
         private readonly rentalContractsRepo: Repository<RentalContract>,
+        @InjectRepository(PropertyIncome)
+        private readonly propertyIncomesRepo: Repository<PropertyIncome>,
+        @InjectRepository(PropertyExpense)
+        private readonly propertyExpensesRepo: Repository<PropertyExpense>,
     ) {}
+
 
     async run() {
         const organization = await this.ensureOrganization();
@@ -179,7 +187,7 @@ export class SeedService {
             ownerId: owner.id,
             code: 'BOHO-001',
             title: 'Apartamento moderno en el sur',
-            description: 'Apartamento 2 habitaciones con parqueadero',
+            description: 'Apartamento 2 habitaciones con parqueadero, cerca al centro comercial',
             propertyType: PropertyType.APARTMENT,
             commercialStatus: PropertyCommercialStatus.AVAILABLE,
             publicationStatus: PropertyPublicationStatus.PUBLISHED,
@@ -190,6 +198,69 @@ export class SeedService {
         await this.ensurePropertyFeature(property.id);
         await this.ensurePropertyAmenity(property.id, amenity.id);
         await this.ensurePropertyAgent(property.id, agentUser.id, 'showing_agent');
+
+        // Financial data for BOHO-001
+        await this.ensureIncomesAndExpenses(property.id);
+
+        // Propiedad 2 - Casa en el norte
+        const property2 = await this.ensureProperty({
+            organizationId: organization.id,
+            ownerId: owner.id,
+            code: 'BOHO-002',
+            title: 'Casa familiar en el norte',
+            description: 'Hermosa casa con 3 habitaciones, jardín y garaje para 2 carros',
+            propertyType: PropertyType.HOUSE,
+            commercialStatus: PropertyCommercialStatus.AVAILABLE,
+            publicationStatus: PropertyPublicationStatus.PUBLISHED,
+        });
+
+        await this.ensurePropertyLocation2(property2.id);
+        await this.ensurePropertyRentalDetail2(property2.id);
+        await this.ensurePropertyFeature2(property2.id);
+        await this.ensurePropertyAmenity(property2.id, amenity.id);
+        await this.ensurePropertyAgent(property2.id, agentUser.id, 'showing_agent');
+        
+        await this.ensureIncomesAndExpenses(property2.id);
+
+        // Propiedad 3 - Estudio en el centro
+        const property3 = await this.ensureProperty({
+            organizationId: organization.id,
+            ownerId: owner.id,
+            code: 'BOHO-003',
+            title: 'Estudio amueblado en el centro',
+            description: 'Estudio moderno amueblado, ideal para estudiantes o profesionales',
+            propertyType: PropertyType.STUDIO,
+            commercialStatus: PropertyCommercialStatus.AVAILABLE,
+            publicationStatus: PropertyPublicationStatus.PUBLISHED,
+        });
+
+        await this.ensurePropertyLocation3(property3.id);
+        await this.ensurePropertyRentalDetail3(property3.id);
+        await this.ensurePropertyFeature3(property3.id);
+        await this.ensurePropertyAmenity(property3.id, amenity.id);
+        await this.ensurePropertyAgent(property3.id, agentUser.id, 'showing_agent');
+
+        await this.ensureIncomesAndExpenses(property3.id);
+
+        // Propiedad 4 - Apartamento de lujo
+        const property4 = await this.ensureProperty({
+            organizationId: organization.id,
+            ownerId: owner.id,
+            code: 'BOHO-004',
+            title: 'Apartamento de lujo con vista panorámica',
+            description: 'Exclusivo apartamento con acabados de alta calidad, piscina y gimnasio',
+            propertyType: PropertyType.APARTMENT,
+            commercialStatus: PropertyCommercialStatus.AVAILABLE,
+            publicationStatus: PropertyPublicationStatus.PUBLISHED,
+        });
+
+        await this.ensurePropertyLocation4(property4.id);
+        await this.ensurePropertyRentalDetail4(property4.id);
+        await this.ensurePropertyFeature4(property4.id);
+        await this.ensurePropertyAmenity(property4.id, amenity.id);
+        await this.ensurePropertyAgent(property4.id, agentUser.id, 'showing_agent');
+
+        await this.ensureIncomesAndExpenses(property4.id);
 
         const lead = await this.ensureLead({
             organizationId: organization.id,
@@ -262,6 +333,46 @@ export class SeedService {
                 { email: 'agent@boho.test', password: 'Agent1234!' },
             ],
         };
+    }
+
+    private async ensureIncomesAndExpenses(propertyId: string) {
+        const today = new Date();
+        const lastMonth = new Date();
+        lastMonth.setMonth(today.getMonth() - 1);
+
+        const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+        // Incomes
+        const incomes = [
+            { amount: '2200000', incomeDate: formatDate(today), incomeType: PropertyIncomeType.ARRIENDO, description: 'Pago arriendo mes actual' },
+            { amount: '2200000', incomeDate: formatDate(lastMonth), incomeType: PropertyIncomeType.ARRIENDO, description: 'Pago arriendo mes anterior' },
+        ];
+
+        for (const inc of incomes) {
+            const existing = await this.propertyIncomesRepo.findOne({
+                where: { propertyId, incomeDate: inc.incomeDate, amount: inc.amount },
+            });
+            if (!existing) {
+                await this.propertyIncomesRepo.save(this.propertyIncomesRepo.create({ ...inc, propertyId }));
+            }
+        }
+
+        // Expenses
+        const expenses = [
+            { amount: '150000', expenseDate: formatDate(today), expenseCategory: PropertyExpenseCategory.MANTENIMIENTO, description: 'Reparación grifo cocina' },
+            { amount: '45000', expenseDate: formatDate(today), expenseCategory: PropertyExpenseCategory.SERVICIO, description: 'Servicio de agua' },
+            { amount: '850000', expenseDate: formatDate(lastMonth), expenseCategory: PropertyExpenseCategory.IMPUESTO, description: 'Impuesto predial cuota 1' },
+            { amount: '120000', expenseDate: formatDate(lastMonth), expenseCategory: PropertyExpenseCategory.MANTENIMIENTO, description: 'Limpieza general' },
+        ];
+
+        for (const exp of expenses) {
+            const existing = await this.propertyExpensesRepo.findOne({
+                where: { propertyId, expenseDate: exp.expenseDate, amount: exp.amount, description: exp.description },
+            });
+            if (!existing) {
+                await this.propertyExpensesRepo.save(this.propertyExpensesRepo.create({ ...exp, propertyId }));
+            }
+        }
     }
 
     private async ensureOrganization() {
@@ -383,6 +494,45 @@ export class SeedService {
         );
     }
 
+    private async ensurePropertyLocation2(propertyId: string) {
+        const existing = await this.propertyLocationsRepo.findOne({ where: { propertyId } });
+        if (existing) return existing;
+        return this.propertyLocationsRepo.save(
+            this.propertyLocationsRepo.create({
+                propertyId,
+                country: 'Colombia',
+                city: 'Cali',
+                address: 'Calle 123 #45-67, Barrio Norte',
+            }),
+        );
+    }
+
+    private async ensurePropertyLocation3(propertyId: string) {
+        const existing = await this.propertyLocationsRepo.findOne({ where: { propertyId } });
+        if (existing) return existing;
+        return this.propertyLocationsRepo.save(
+            this.propertyLocationsRepo.create({
+                propertyId,
+                country: 'Colombia',
+                city: 'Cali',
+                address: 'Cra 50 #10-20, Centro',
+            }),
+        );
+    }
+
+    private async ensurePropertyLocation4(propertyId: string) {
+        const existing = await this.propertyLocationsRepo.findOne({ where: { propertyId } });
+        if (existing) return existing;
+        return this.propertyLocationsRepo.save(
+            this.propertyLocationsRepo.create({
+                propertyId,
+                country: 'Colombia',
+                city: 'Cali',
+                address: 'Av. 6 #100-200, Barrio Granada',
+            }),
+        );
+    }
+
     private async ensurePropertyRentalDetail(propertyId: string) {
         const existing = await this.propertyRentalDetailsRepo.findOne({ where: { propertyId } });
         if (existing) return existing;
@@ -390,6 +540,42 @@ export class SeedService {
             this.propertyRentalDetailsRepo.create({
                 propertyId,
                 monthlyRent: '2200000',
+                currency: 'COP',
+            }),
+        );
+    }
+
+    private async ensurePropertyRentalDetail2(propertyId: string) {
+        const existing = await this.propertyRentalDetailsRepo.findOne({ where: { propertyId } });
+        if (existing) return existing;
+        return this.propertyRentalDetailsRepo.save(
+            this.propertyRentalDetailsRepo.create({
+                propertyId,
+                monthlyRent: '3500000',
+                currency: 'COP',
+            }),
+        );
+    }
+
+    private async ensurePropertyRentalDetail3(propertyId: string) {
+        const existing = await this.propertyRentalDetailsRepo.findOne({ where: { propertyId } });
+        if (existing) return existing;
+        return this.propertyRentalDetailsRepo.save(
+            this.propertyRentalDetailsRepo.create({
+                propertyId,
+                monthlyRent: '1500000',
+                currency: 'COP',
+            }),
+        );
+    }
+
+    private async ensurePropertyRentalDetail4(propertyId: string) {
+        const existing = await this.propertyRentalDetailsRepo.findOne({ where: { propertyId } });
+        if (existing) return existing;
+        return this.propertyRentalDetailsRepo.save(
+            this.propertyRentalDetailsRepo.create({
+                propertyId,
+                monthlyRent: '5000000',
                 currency: 'COP',
             }),
         );
@@ -404,6 +590,48 @@ export class SeedService {
                 bedrooms: 2,
                 bathrooms: 2,
                 isFurnished: false,
+                petsAllowed: true,
+            }),
+        );
+    }
+
+    private async ensurePropertyFeature2(propertyId: string) {
+        const existing = await this.propertyFeaturesRepo.findOne({ where: { propertyId } });
+        if (existing) return existing;
+        return this.propertyFeaturesRepo.save(
+            this.propertyFeaturesRepo.create({
+                propertyId,
+                bedrooms: 3,
+                bathrooms: 2,
+                isFurnished: true,
+                petsAllowed: true,
+            }),
+        );
+    }
+
+    private async ensurePropertyFeature3(propertyId: string) {
+        const existing = await this.propertyFeaturesRepo.findOne({ where: { propertyId } });
+        if (existing) return existing;
+        return this.propertyFeaturesRepo.save(
+            this.propertyFeaturesRepo.create({
+                propertyId,
+                bedrooms: 1,
+                bathrooms: 1,
+                isFurnished: true,
+                petsAllowed: false,
+            }),
+        );
+    }
+
+    private async ensurePropertyFeature4(propertyId: string) {
+        const existing = await this.propertyFeaturesRepo.findOne({ where: { propertyId } });
+        if (existing) return existing;
+        return this.propertyFeaturesRepo.save(
+            this.propertyFeaturesRepo.create({
+                propertyId,
+                bedrooms: 3,
+                bathrooms: 3,
+                isFurnished: true,
                 petsAllowed: true,
             }),
         );

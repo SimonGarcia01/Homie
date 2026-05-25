@@ -18,6 +18,9 @@ export class PropertyLocation {
     @Column({ length: 120 })
     city!: string;
 
+    @Column({ type: 'varchar', length: 255, nullable: true })
+    address?: string | null;
+
     @Column({
         type: 'enum',
         enum: LocationPrecision,
@@ -25,6 +28,12 @@ export class PropertyLocation {
         default: LocationPrecision.EXACT,
     })
     locationPrecision!: LocationPrecision;
+
+    @Column({ type: 'double precision', nullable: true })
+    latitude?: number | null;
+
+    @Column({ type: 'double precision', nullable: true })
+    longitude?: number | null;
 
     @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
     createdAt!: Date;

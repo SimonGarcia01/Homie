@@ -1,11 +1,16 @@
+import { join } from 'path';
+
 import { ValidationPipe } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-    const app = await NestFactory.create(AppModule);
+    const app = await NestFactory.create<NestExpressApplication>(AppModule);
+    const configService = app.get(ConfigService);
 
     app.enableCors({
         origin: true,
@@ -20,6 +25,10 @@ async function bootstrap() {
             forbidNonWhitelisted: true,
         }),
     );
+
+    const uploadsDir = configService.get<string>('UPLOADS_DIR', join(process.cwd(), 'uploads'));
+    const uploadsPrefix = configService.get<string>('UPLOADS_PUBLIC_PREFIX', '/uploads');
+    app.useStaticAssets(uploadsDir, { prefix: uploadsPrefix });
 
     const config = new DocumentBuilder()
         .setTitle('Rental CRM API')

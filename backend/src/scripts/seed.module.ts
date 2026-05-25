@@ -31,6 +31,8 @@ import { Role } from '../modules/roles/entities/role.entity';
 import { TaskItem } from '../modules/tasks/entities/task.entity';
 import { User } from '../modules/users/entities/user.entity';
 import { Visit } from '../modules/visits/entities/visit.entity';
+import { PropertyIncome } from '../modules/properties/entities/property-income.entity';
+import { PropertyExpense } from '../modules/properties/entities/property-expense.entity';
 
 import { SeedController } from './seed.controller';
 import { SeedService } from './seed.service';
@@ -68,9 +70,12 @@ import { SeedService } from './seed.service';
             TaskItem,
             User,
             Visit,
+            PropertyIncome,
+            PropertyExpense,
         ]),
     ],
     controllers: [SeedController],
     providers: [SeedService],
+    exports: [SeedService],
 })
 export class SeedModule {}
