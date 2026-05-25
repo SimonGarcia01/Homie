@@ -35,6 +35,15 @@ export class Visit extends TimestampEntity {
     @Column({ type: 'enum', enum: VisitStatus, default: VisitStatus.PROPOSED })
     status!: VisitStatus;
 
+    @Column({ type: 'timestamptz', name: 'scheduled_at', nullable: true })
+    scheduledAt?: Date | null;
+
+    @Column({ type: 'int', name: 'duration_min', nullable: true })
+    durationMin?: number | null;
+
+    @Column({ type: 'text', nullable: true })
+    notes?: string | null;
+
     @ManyToOne(() => Organization)
     @JoinColumn({ name: 'organization_id' })
     organization?: Organization;

@@ -1,5 +1,7 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+
+import { ActivitiesModule } from '../activities/activities.module';
 
 import { AgentAvailability } from './entities/agent-availability.entity';
 import { Visit } from './entities/visit.entity';
@@ -7,7 +9,7 @@ import { VisitsController } from './visits.controller';
 import { VisitsService } from './visits.service';
 
 @Module({
-    imports: [TypeOrmModule.forFeature([Visit, AgentAvailability])],
+    imports: [TypeOrmModule.forFeature([Visit, AgentAvailability]), forwardRef(() => ActivitiesModule)],
     controllers: [VisitsController],
     providers: [VisitsService],
     exports: [VisitsService],

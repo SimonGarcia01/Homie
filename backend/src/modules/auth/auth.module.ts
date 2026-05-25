@@ -4,6 +4,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 import { Role } from '../roles/entities/role.entity';
+import { OpportunitiesModule } from '../opportunities/opportunities.module';
+import { OrganizationsModule } from '../organizations/organizations.module';
 import { UsersModule } from '../users/users.module';
 
 import { AuthController } from './auth.controller';
@@ -14,6 +16,8 @@ import { JwtStrategy } from './jwt.strategy';
     imports: [
         ConfigModule,
         UsersModule,
+        OrganizationsModule,
+        OpportunitiesModule,
         TypeOrmModule.forFeature([Role]),
         JwtModule.registerAsync({
             inject: [ConfigService],

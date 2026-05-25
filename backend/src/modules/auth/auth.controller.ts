@@ -6,6 +6,7 @@ import { Public } from '../../common/auth/public.decorator';
 
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
+import { RegisterDto } from './dto/register.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -21,6 +22,12 @@ export class AuthController {
         return this.authService.login(dto.email, dto.password, (payload) => this.jwtService.sign(payload));
     }
 
+    @Public()
+    @Post('register')
+    register(@Body() dto: RegisterDto) {
+        return this.authService.register(dto, (payload) => this.jwtService.sign(payload));
+    }
+
     @ApiBearerAuth()
     @Post('logout')
     logout() {
@@ -29,7 +36,7 @@ export class AuthController {
 
     @ApiBearerAuth()
     @Get('me')
-    me(@Req() req: { user: unknown }) {
-        return req.user;
+    async me(@Req() req: { user: { id: string } }) {
+        return this.authService.getProfile(req.user.id);
     }
 }

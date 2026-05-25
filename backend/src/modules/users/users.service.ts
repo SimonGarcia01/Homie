@@ -31,7 +31,7 @@ export class UsersService {
     }
 
     findAll() {
-        return this.usersRepository.find();
+        return this.usersRepository.find({ relations: { role: true }, order: { createdAt: 'DESC' } });
     }
 
     async findOne(id: string) {

@@ -3,11 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import PDFDocument from 'pdfkit';
 import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 
-import { PropertyCommercialStatus, PropertyExpenseCategory, PropertyPublicationStatus } from '../../common/enums';
+import { commercialStatusToEs, propertyTypeToEs, toPropertySummaryEs } from '../../common/domain-labels';
+import { PropertyCommercialStatus, PropertyExpenseCategory, PropertyPublicationStatus, PropertyType } from '../../common/enums';
 
 import { CreatePropertyExpenseDto } from './dto/create-property-expense.dto';
 import { CreatePropertyIncomeDto } from './dto/create-property-income.dto';
 import { CreatePropertyDto } from './dto/create-property.dto';
+import { PropertySearchQueryDto, PropertyStatsQueryDto } from './dto/property-search-query.dto';
 import { PublicPropertyFilterDto } from './dto/public-property-filter.dto';
 import { PropertyBalanceQueryDto } from './dto/property-balance-query.dto';
 import { PropertyExpenseReportQueryDto } from './dto/property-expense-report-query.dto';
@@ -17,6 +19,7 @@ import { UpdatePropertyExpenseDto } from './dto/update-property-expense.dto';
 import { UpdatePropertyIncomeDto } from './dto/update-property-income.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertyExpense } from './entities/property-expense.entity';
+import { PropertyFeature } from './entities/property-feature.entity';
 import { PropertyIncome } from './entities/property-income.entity';
 import { PropertyLocation } from './entities/property-location.entity';
 import { PropertyRentalDetail } from './entities/property-rental-detail.entity';
@@ -72,9 +75,16 @@ export class PropertiesService {
             });
             await manager.save(location);
 
+            const feature = manager.create(PropertyFeature, {
+                propertyId: savedProperty.id,
+                bedrooms: createDto.bedrooms ?? 0,
+                bathrooms: createDto.bathrooms ?? 0,
+            });
+            await manager.save(feature);
+
             return manager.findOneOrFail(Property, {
                 where: { id: savedProperty.id },
-                relations: { rentalDetail: true, location: true, images: true },
+                relations: { rentalDetail: true, location: true, images: true, feature: true },
             });
         });
     }
@@ -82,7 +92,7 @@ export class PropertiesService {
     async findAll(organizationId: string) {
         const properties = await this.repository.find({
             where: { organizationId },
-            relations: { images: true, rentalDetail: true, location: true },
+            relations: { images: true, rentalDetail: true, location: true, feature: true },
             order: { updatedAt: 'DESC' },
         });
         return properties.map((property) => this.attachCover(property));
@@ -91,7 +101,7 @@ export class PropertiesService {
     async findOne(id: string, organizationId: string) {
         const entity = await this.repository.findOne({
             where: { id, organizationId },
-            relations: { images: true, rentalDetail: true, location: true },
+            relations: { images: true, rentalDetail: true, location: true, feature: true },
         });
         if (!entity) throw new NotFoundException('Property not found');
         return this.attachCover(entity);
@@ -107,7 +117,42 @@ export class PropertiesService {
         if (updateDto.commercialStatus !== undefined) entity.commercialStatus = updateDto.commercialStatus;
         if (updateDto.publicationStatus !== undefined) entity.publicationStatus = updateDto.publicationStatus;
         if (updateDto.isVisible !== undefined) entity.isVisible = updateDto.isVisible;
-        return this.repository.save(entity);
+
+        await this.repository.save(entity);
+
+        if (updateDto.bedrooms !== undefined || updateDto.bathrooms !== undefined) {
+            let feature = entity.feature;
+            if (!feature) {
+                feature = this.dataSource.manager.create(PropertyFeature, { propertyId: entity.id, bedrooms: 0, bathrooms: 0 });
+            }
+            if (updateDto.bedrooms !== undefined) feature.bedrooms = updateDto.bedrooms;
+            if (updateDto.bathrooms !== undefined) feature.bathrooms = updateDto.bathrooms;
+            await this.dataSource.manager.save(feature);
+        }
+
+        if (
+            updateDto.monthlyRent !== undefined ||
+            updateDto.currency !== undefined
+        ) {
+            const rental = entity.rentalDetail;
+            if (rental) {
+                if (updateDto.monthlyRent !== undefined) rental.monthlyRent = updateDto.monthlyRent.toFixed(2);
+                if (updateDto.currency !== undefined) rental.currency = updateDto.currency.trim();
+                await this.dataSource.manager.save(rental);
+            }
+        }
+
+        if (updateDto.city !== undefined || updateDto.country !== undefined || updateDto.address !== undefined) {
+            const location = entity.location;
+            if (location) {
+                if (updateDto.city !== undefined) location.city = updateDto.city.trim();
+                if (updateDto.country !== undefined) location.country = updateDto.country.trim();
+                if (updateDto.address !== undefined) location.address = updateDto.address?.trim();
+                await this.dataSource.manager.save(location);
+            }
+        }
+
+        return this.findOne(id, organizationId);
     }
 
     async remove(id: string, organizationId: string) {
@@ -487,6 +532,151 @@ export class PropertiesService {
             createdAt: expense.createdAt,
             updatedAt: expense.updatedAt,
         };
+    }
+
+    async search(organizationId: string, userId: string | undefined, filter: PropertySearchQueryDto) {
+        const { page = 1, limit = 20, countOnly, assignedToMe, ...rest } = filter;
+        const qb = this.createOrgSearchQueryBuilder(organizationId, userId, { ...rest, assignedToMe });
+
+        if (countOnly) {
+            const count = await qb.getCount();
+            return { count };
+        }
+
+        const skip = (page - 1) * limit;
+        const [data, total] = await qb
+            .orderBy('property.updatedAt', 'DESC')
+            .skip(skip)
+            .take(limit)
+            .getManyAndCount();
+
+        return {
+            count: total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit),
+            items: data.map((p) => toPropertySummaryEs(p)),
+        };
+    }
+
+    async getStats(organizationId: string, userId: string | undefined, filter: PropertyStatsQueryDto = {}) {
+        const baseQb = this.createOrgSearchQueryBuilder(organizationId, userId, {
+            assignedToMe: filter.assignedToMe,
+        });
+
+        const total = await baseQb.getCount();
+
+        const byCommercialStatus = await this.createOrgSearchQueryBuilder(organizationId, userId, {
+            assignedToMe: filter.assignedToMe,
+        })
+            .select('property.commercialStatus', 'status')
+            .addSelect('COUNT(*)', 'count')
+            .groupBy('property.commercialStatus')
+            .getRawMany<{ status: PropertyCommercialStatus; count: string }>();
+
+        const byPropertyType = await this.createOrgSearchQueryBuilder(organizationId, userId, {
+            assignedToMe: filter.assignedToMe,
+        })
+            .select('property.propertyType', 'type')
+            .addSelect('COUNT(*)', 'count')
+            .groupBy('property.propertyType')
+            .getRawMany<{ type: string; count: string }>();
+
+        const byCity = await this.createOrgSearchQueryBuilder(organizationId, userId, {
+            assignedToMe: filter.assignedToMe,
+        })
+            .select('location.city', 'city')
+            .addSelect('COUNT(*)', 'count')
+            .groupBy('location.city')
+            .orderBy('count', 'DESC')
+            .limit(10)
+            .getRawMany<{ city: string; count: string }>();
+
+        return {
+            total,
+            porEstadoComercial: byCommercialStatus.map((r) => ({
+                estado: commercialStatusToEs(r.status),
+                cantidad: Number(r.count),
+            })),
+            porTipo: byPropertyType.map((r) => ({
+                tipo: propertyTypeToEs(r.type as PropertyType),
+                cantidad: Number(r.count),
+            })),
+            topCiudades: byCity
+                .filter((r) => r.city)
+                .map((r) => ({ ciudad: r.city, cantidad: Number(r.count) })),
+        };
+    }
+
+    async findSummary(id: string, organizationId: string) {
+        const property = await this.repository.findOne({
+            where: { id, organizationId },
+            relations: { location: true, rentalDetail: true, feature: true },
+        });
+        if (!property) throw new NotFoundException('Property not found');
+        return toPropertySummaryEs(property);
+    }
+
+    private createOrgSearchQueryBuilder(
+        organizationId: string,
+        userId: string | undefined,
+        filter: Omit<PropertySearchQueryDto, 'page' | 'limit' | 'countOnly'>,
+    ) {
+        const qb = this.repository
+            .createQueryBuilder('property')
+            .leftJoinAndSelect('property.location', 'location')
+            .leftJoinAndSelect('property.rentalDetail', 'rentalDetail')
+            .leftJoinAndSelect('property.feature', 'feature')
+            .where('property.organizationId = :organizationId', { organizationId });
+
+        if (filter.assignedToMe) {
+            if (!userId) {
+                qb.andWhere('1 = 0');
+            } else {
+                qb.innerJoin('property_agents', 'pa', 'pa.property_id = property.id AND pa.user_id = :userId', {
+                    userId,
+                });
+            }
+        }
+
+        if (filter.propertyType) {
+            qb.andWhere('property.propertyType = :propertyType', { propertyType: filter.propertyType });
+        }
+
+        if (filter.commercialStatus) {
+            qb.andWhere('property.commercialStatus = :commercialStatus', {
+                commercialStatus: filter.commercialStatus,
+            });
+        }
+
+        if (filter.publicationStatus) {
+            qb.andWhere('property.publicationStatus = :publicationStatus', {
+                publicationStatus: filter.publicationStatus,
+            });
+        }
+
+        if (filter.minRent !== undefined) {
+            qb.andWhere('CAST(rentalDetail.monthlyRent AS DECIMAL) >= :minRent', { minRent: filter.minRent });
+        }
+
+        if (filter.maxRent !== undefined) {
+            qb.andWhere('CAST(rentalDetail.monthlyRent AS DECIMAL) <= :maxRent', { maxRent: filter.maxRent });
+        }
+
+        if (filter.city) {
+            qb.andWhere('location.city ILIKE :city', { city: `%${filter.city}%` });
+        }
+
+        if (filter.country) {
+            qb.andWhere('location.country ILIKE :country', { country: `%${filter.country}%` });
+        }
+
+        if (filter.q?.trim()) {
+            const q = `%${filter.q.trim()}%`;
+            qb.andWhere('(property.title ILIKE :q OR property.code ILIKE :q)', { q });
+        }
+
+        return qb;
     }
 
     async findPublicProperties(filter: PublicPropertyFilterDto) {
