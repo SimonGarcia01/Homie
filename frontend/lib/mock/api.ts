@@ -1,10 +1,5 @@
-// Unified API surface for the UI — wired to Nest where available, mock fallback elsewhere.
+// Unified API surface for the UI — wired to Nest where available.
 import {
-  users as mockUsers,
-  leads,
-  visits,
-  activities,
-  documents,
   type User,
   type Property,
   type Owner,
@@ -16,12 +11,15 @@ import {
 } from "./db";
 
 import * as backendAuth from "@/lib/api/auth";
+import { sendAssistantMessage, type AssistantSendPayload } from "@/lib/api/assistant";
 import { listPropertiesFull, createProperty as createBackendProperty } from "@/lib/api/properties";
-import { getOwnerOptions } from "@/lib/api/owners";
+import { createOwner as createBackendOwner, getOwnerOptions } from "@/lib/api/owners";
 import { getIncomesSummary, getGlobalExpenses } from "@/lib/api/reports";
-import { getIncomes } from "@/lib/api/property-incomes";
-import { getExpenses } from "@/lib/api/finanzas";
-import { listUsers as fetchUsers, toggleUserActive } from "@/lib/api/users";
+import { getIncomes, createIncome } from "@/lib/api/property-incomes";
+import { getExpenses, createExpense } from "@/lib/api/finanzas";
+import { listUsers as fetchUsers, toggleUserActive, createUser as createBackendUser } from "@/lib/api/users";
+import { listRoles } from "@/lib/api/crm";
+import * as crm from "@/lib/api/crm";
 import {
   unwrap,
   mapBackendProperty,
@@ -30,11 +28,49 @@ import {
   mapBackendOwner,
   mapBackendUserRow,
   expenseCategoryLabel,
+  mapUiRole,
 } from "@/lib/mappers";
 import { AuthError, translateAuthError } from "@/lib/auth-messages";
 import { isAuthProfile } from "@/lib/api/auth";
 
-const delay = (ms = 120) => new Promise((r) => setTimeout(r, ms));
+function mapLeadRow(row: crm.LeadRow): Lead {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    propertyId: row.propertyId ?? "",
+    stage: row.stage as Lead["stage"],
+    createdAt: row.createdAt,
+  };
+}
+
+function mapVisitRow(row: crm.VisitRow): Visit {
+  return {
+    id: row.id,
+    propertyId: row.propertyId,
+    leadId: row.leadId ?? "",
+    date: row.date,
+    status: row.status as Visit["status"],
+    durationMin: row.durationMin,
+    notes: row.notes,
+  };
+}
+
+function mapDocumentRow(row: crm.DocumentRow): Document {
+  return {
+    id: row.id,
+    name: row.name,
+    kind: row.kind as Document["kind"],
+    status: row.status as Document["status"],
+    propertyId: row.propertyId,
+    leadId: row.leadId,
+    ownerId: row.ownerId,
+    uploadedAt: row.uploadedAt,
+    expiresAt: row.expiresAt,
+    size: row.size,
+  };
+}
 
 function profileToSafeUser(profile: backendAuth.AuthUser): Omit<User, "password"> {
   if (isAuthProfile(profile)) {
@@ -147,12 +183,51 @@ export const api = {
     return rows.map(mapBackendUserRow);
   },
 
-  async createUser(_input: Omit<User, "id" | "avatarColor">): Promise<Omit<User, "password">> {
-    throw new Error("Alta de usuarios disponible pronto desde el panel de administración.");
+  async createUser(input: {
+    name: string;
+    email: string;
+    role: Role;
+    password: string;
+  }): Promise<Omit<User, "password">> {
+    const profile = unwrap(await backendAuth.getMe());
+    const roles = unwrap(await listRoles());
+    const roleRow = roles.find((r) => r.name === mapUiRole(input.role));
+    if (!roleRow) throw new Error("Rol no encontrado");
+    const [firstName, ...rest] = input.name.trim().split(" ");
+    const created = unwrap(
+      await createBackendUser({
+        organizationId: profile.organizationId,
+        roleId: roleRow.id,
+        email: input.email,
+        password: input.password,
+        firstName: firstName || input.name,
+        lastName: rest.join(" ") || firstName,
+      }),
+    );
+    return mapBackendUserRow({ ...created, role: { name: roleRow.name } });
   },
 
-  async updateUser(_id: string, _patch: Partial<User>): Promise<Omit<User, "password">> {
-    throw new Error("Edición de usuarios disponible pronto.");
+  async updateUser(id: string, patch: Partial<User> & { password?: string }): Promise<Omit<User, "password">> {
+    const [firstName, ...rest] = (patch.name ?? "").trim().split(" ").filter(Boolean);
+    const payload: Record<string, unknown> = {};
+    if (firstName) {
+      payload.firstName = firstName;
+      payload.lastName = rest.join(" ") || firstName;
+    }
+    if (patch.email) payload.email = patch.email;
+    if (patch.active !== undefined) payload.isActive = patch.active;
+    if (patch.password) payload.password = patch.password;
+    if (patch.role) {
+      const roles = unwrap(await listRoles());
+      const roleRow = roles.find((r) => r.name === mapUiRole(patch.role!));
+      if (roleRow) payload.roleId = roleRow.id;
+    }
+    const updated = unwrap(await import("@/lib/api/users").then((m) => m.updateUser(id, payload)));
+    return mapBackendUserRow(updated);
+  },
+
+  async listRoles() {
+    return unwrap(await listRoles());
   },
 
   async toggleUserActive(id: string): Promise<void> {
@@ -165,6 +240,18 @@ export const api = {
   async listOwners(): Promise<Owner[]> {
     const options = unwrap(await getOwnerOptions());
     return options.map(mapBackendOwner);
+  },
+
+  async createOwner(input: { firstName: string; lastName: string; email?: string; phone?: string }) {
+    const created = unwrap(
+      await createBackendOwner({
+        firstName: input.firstName.trim(),
+        lastName: input.lastName.trim(),
+        email: input.email?.trim() || undefined,
+        phone: input.phone?.trim() || undefined,
+      }),
+    );
+    return mapBackendOwner(created);
   },
 
   async listProperties(): Promise<Property[]> {
@@ -205,24 +292,52 @@ export const api = {
       inactiva: properties.filter((p) => p.status === "inactiva").length,
     };
 
-    const opportunities = leads.filter((l) => !["ganado", "perdido"].includes(l.stage)).length;
-    const newLeads = leads.filter((l) => l.stage === "nuevo").length;
-    const upcomingVisits = visits.filter((v) => v.status === "programada").length;
-    const pendingApplications = leads.filter((l) => l.stage === "aplicacion").length;
+    let board = { pipeline: null as { id: string; name: string } | null, stages: [] as { key: string; name: string; order: number; items: crm.OpportunityRow[] }[] };
+    try {
+      board = unwrap(await crm.getOpportunityBoard());
+    } catch {
+      /* empty */
+    }
 
-    const pipeline = [
-      { key: "nuevo", label: "Semilla", description: "Nuevo interés", count: leads.filter((l) => l.stage === "nuevo").length },
-      { key: "contactado", label: "Brote", description: "Contactado", count: leads.filter((l) => l.stage === "contactado").length },
-      { key: "visita", label: "Planta joven", description: "Visita agendada", count: leads.filter((l) => l.stage === "visita").length },
-      { key: "aplicacion", label: "Floración", description: "Aplicación en curso", count: leads.filter((l) => l.stage === "aplicacion").length },
-      { key: "ganado", label: "Cosecha", description: "Ganada", count: leads.filter((l) => l.stage === "ganado").length },
-    ];
+    const opportunities = board.stages
+      .filter((s) => !["ganado", "perdido"].includes(s.key))
+      .reduce((a, s) => a + s.items.length, 0);
+    let newLeads = 0;
+    let pendingApplications = 0;
+    try {
+      newLeads = unwrap(await crm.countNewLeads()).count;
+    } catch { /* */ }
+    try {
+      pendingApplications = unwrap(await crm.countPendingApplications()).count;
+    } catch { /* */ }
+    let upcomingVisitsList: Visit[] = [];
+    try {
+      upcomingVisitsList = unwrap(await crm.listUpcomingVisits()).map(mapVisitRow);
+    } catch {
+      upcomingVisitsList = [];
+    }
+    const upcomingVisits = upcomingVisitsList.length;
+
+    const pipeline = board.stages
+      .filter((s) => s.key !== "perdido")
+      .slice(0, 5)
+      .map((s) => ({
+        key: s.key,
+        label: s.name,
+        description: s.name,
+        count: s.items.length,
+      }));
+
+    let docStats = { pendientes: 0, sinVerificar: 0, rechazados: 0 };
+    try {
+      docStats = unwrap(await crm.getDocumentStats());
+    } catch { /* */ }
 
     const propiedadesSinDocs = properties.filter((p) => p.publishStatus === "borrador").length;
     const docState = {
-      pendientes: 0,
-      sinVerificar: 0,
-      rechazados: 0,
+      pendientes: docStats.pendientes + propiedadesSinDocs,
+      sinVerificar: docStats.sinVerificar,
+      rechazados: docStats.rechazados,
       aplicacionesIncompletas: pendingApplications,
       propiedadesSinDocs,
     };
@@ -326,62 +441,147 @@ export const api = {
   },
 
   async getRecentActivity(limit = 8) {
-    await delay(80);
-    return [...activities]
-      .sort((a, b) => b.date.localeCompare(a.date))
-      .slice(0, limit)
-      .map((a) => ({ ...a, user: mockUsers.find((u) => u.id === a.userId) }));
+    const rows = unwrap(await crm.listActivities(limit));
+    const users = await this.listUsers();
+    return rows.map((a) => ({
+      id: a.id,
+      type: a.type as "lead" | "visita" | "documento" | "propiedad" | "oportunidad" | "contrato",
+      message: a.message,
+      userId: a.userId,
+      entityId: a.entityId ?? a.id,
+      entityLabel: a.entityLabel ?? "",
+      date: a.date,
+      user: users.find((u) => u.id === a.userId),
+    }));
   },
 
   async getUpcomingVisits() {
-    await delay(80);
     const properties = await this.listProperties();
-    return visits
-      .filter((v) => v.status === "programada")
-      .sort((a, b) => a.date.localeCompare(b.date))
+    const leadsList = await this.listLeads();
+    return unwrap(await crm.listUpcomingVisits())
+      .map(mapVisitRow)
       .map((v) => ({
         ...v,
         property: properties.find((p) => p.id === v.propertyId),
-        lead: leads.find((l) => l.id === v.leadId),
+        lead: leadsList.find((l) => l.id === v.leadId),
       }));
   },
 
   async listLeads(): Promise<(Lead & { property?: Property })[]> {
-    await delay(80);
     const properties = await this.listProperties();
-    return [...leads]
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .map((l) => ({ ...l, property: properties.find((p) => p.id === l.propertyId) }));
+    return unwrap(await crm.listLeads())
+      .map(mapLeadRow)
+      .map((l) => ({ ...l, property: l.propertyId ? properties.find((p) => p.id === l.propertyId) : undefined }));
+  },
+
+  async createLead(input: { firstName: string; lastName: string; email?: string; phone?: string; propertyId?: string }) {
+    return mapLeadRow(unwrap(await crm.createLead(input)));
+  },
+
+  async contactLead(id: string) {
+    return mapLeadRow(unwrap(await crm.contactLead(id)));
+  },
+
+  async convertLead(id: string, propertyId?: string) {
+    return crm.convertLead(id, propertyId);
+  },
+
+  async listOpportunities(): Promise<(Lead & { property?: Property })[]> {
+    const properties = await this.listProperties();
+    const board = unwrap(await crm.getOpportunityBoard());
+    const items = board.stages.flatMap((s) =>
+      s.items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        email: item.email,
+        phone: item.phone,
+        propertyId: item.propertyId ?? "",
+        stage: item.stage as Lead["stage"],
+        createdAt: item.createdAt,
+      })),
+    );
+    return items.map((l) => ({
+      ...l,
+      property: l.propertyId ? properties.find((p) => p.id === l.propertyId) : undefined,
+    }));
+  },
+
+  async updateOpportunityStage(id: string, stageKey: string) {
+    return crm.updateOpportunityStage(id, stageKey);
   },
 
   async listVisits(): Promise<(Visit & { property?: Property; lead?: Lead })[]> {
-    await delay(80);
     const properties = await this.listProperties();
-    return [...visits]
-      .sort((a, b) => a.date.localeCompare(b.date))
+    const leadsList = await this.listLeads();
+    return unwrap(await crm.listVisits())
+      .map(mapVisitRow)
       .map((v) => ({
         ...v,
         property: properties.find((p) => p.id === v.propertyId),
-        lead: leads.find((l) => l.id === v.leadId),
+        lead: leadsList.find((l) => l.id === v.leadId),
       }));
   },
 
+  async updateVisit(id: string, patch: { status?: string; scheduledAt?: string }) {
+    return mapVisitRow(unwrap(await crm.updateVisit(id, patch)));
+  },
+
   async listDocuments(): Promise<(Document & { property?: Property; lead?: Lead; owner?: Owner })[]> {
-    await delay(80);
     const properties = await this.listProperties();
+    const leadsList = await this.listLeads();
     const owners = await this.listOwners();
-    return [...documents]
-      .sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt))
+    return unwrap(await crm.listDocuments())
+      .map(mapDocumentRow)
       .map((d) => ({
         ...d,
         property: d.propertyId ? properties.find((p) => p.id === d.propertyId) : undefined,
-        lead: d.leadId ? leads.find((l) => l.id === d.leadId) : undefined,
+        lead: d.leadId ? leadsList.find((l) => l.id === d.leadId) : undefined,
         owner: d.ownerId ? owners.find((o) => o.id === d.ownerId) : undefined,
       }));
   },
 
+  async uploadDocument(file: File, meta?: { propertyId?: string; leadId?: string; kind?: string }) {
+    return mapDocumentRow(unwrap(await crm.uploadDocument(file, meta)));
+  },
+
+  async downloadDocument(id: string) {
+    return crm.downloadDocument(id);
+  },
+
+  async createFinance(input: {
+    kind: "ingreso" | "gasto";
+    propertyId: string;
+    amount: number;
+    date: string;
+    concept: string;
+  }) {
+    if (input.kind === "ingreso") {
+      unwrap(
+        await createIncome(input.propertyId, {
+          amount: input.amount,
+          incomeDate: input.date,
+          incomeType: "arriendo",
+          description: input.concept,
+        }),
+      );
+    } else {
+      unwrap(
+        await createExpense(input.propertyId, {
+          amount: input.amount,
+          expenseDate: input.date,
+          expenseCategory: "mantenimiento",
+          description: input.concept,
+        }),
+      );
+    }
+  },
+
   async listFinances(kind?: "ingreso" | "gasto"): Promise<(Finance & { property?: Property })[]> {
     return loadAllFinances(kind);
+  },
+
+  async sendAssistantMessage(payload: AssistantSendPayload) {
+    return sendAssistantMessage(payload);
   },
 };
 

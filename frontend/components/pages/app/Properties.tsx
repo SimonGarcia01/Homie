@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { Property } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
 import { PropertyDetailDialog } from "@/components/properties/PropertyDetailDialog";
+import { PropertyMap } from "@/components/properties/PropertyMap";
 
 const STATUS_TONE: Record<Property["status"], string> = {
   disponible: "bg-primary/10 text-primary border-primary/20",
@@ -36,6 +37,7 @@ export default function Properties() {
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"todas" | Property["status"]>("todas");
   const [selected, setSelected] = useState<Property | null>(null);
+  const [view, setView] = useState<"grid" | "map">("grid");
 
   useEffect(() => {
     api.listProperties().then((p) => {
@@ -71,6 +73,8 @@ export default function Properties() {
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título, dirección o comuna" className="pl-9 h-11" />
         </div>
         <div className="flex gap-2 overflow-x-auto">
+          <button type="button" onClick={() => setView("grid")} className={cn("px-4 h-11 rounded-full text-sm font-medium border whitespace-nowrap", view === "grid" ? "bg-primary text-primary-foreground border-primary" : "bg-surface border-border")}>Lista</button>
+          <button type="button" onClick={() => setView("map")} className={cn("px-4 h-11 rounded-full text-sm font-medium border whitespace-nowrap", view === "map" ? "bg-primary text-primary-foreground border-primary" : "bg-surface border-border")}>Mapa</button>
           {(["todas", "disponible", "reservada", "arrendada", "inactiva"] as const).map((s) => (
             <button
               key={s}
@@ -89,7 +93,11 @@ export default function Properties() {
         </div>
       </div>
 
-      {loading ? (
+      {view === "map" ? (
+        <div className="mt-6">
+          <PropertyMap properties={filtered} />
+        </div>
+      ) : loading ? (
         <p className="mt-10 text-muted-foreground">Cargando…</p>
       ) : filtered.length === 0 ? (
         <div className="mt-10 rounded-2xl border border-dashed border-border bg-surface p-12 text-center">

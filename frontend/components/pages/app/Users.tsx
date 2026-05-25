@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { ShieldCheck, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/mock/api";
 import type { Role, User } from "@/lib/mock/db";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -22,6 +26,9 @@ type SafeUser = Omit<User, "password">;
 export default function Users() {
   const [items, setItems] = useState<SafeUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", email: "", role: "agente" as Role, password: "" });
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.listUsers().then((u) => { setItems(u); setLoading(false); });
@@ -29,9 +36,24 @@ export default function Users() {
 
   async function toggle(id: string) {
     await api.toggleUserActive(id);
-    const fresh = await api.listUsers();
-    setItems(fresh);
+    setItems(await api.listUsers());
     toast({ title: "Usuario actualizado" });
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api.createUser(form);
+      setItems(await api.listUsers());
+      setOpen(false);
+      setForm({ name: "", email: "", role: "agente", password: "" });
+      toast({ title: "Usuario creado" });
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo crear", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -42,7 +64,7 @@ export default function Users() {
           <h1 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">Usuarios</h1>
           <p className="text-muted-foreground mt-1">Gestiona accesos y roles del equipo.</p>
         </div>
-        <Button variant="hero" size="lg" onClick={() => toast({ title: "Pronto", description: "El alta de usuarios estará disponible al conectar Lovable Cloud." })}>
+        <Button variant="hero" size="lg" onClick={() => setOpen(true)}>
           <UserPlus className="h-4 w-4" /> Nuevo usuario
         </Button>
       </header>
@@ -97,6 +119,42 @@ export default function Users() {
           </Table>
         )}
       </section>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nuevo usuario</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreate} className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nombre completo</Label>
+              <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Correo</Label>
+              <Input id="email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Rol</Label>
+              <Select value={form.role} onValueChange={(v) => setForm({ ...form, role: v as Role })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="coordinador">Coordinador</SelectItem>
+                  <SelectItem value="agente">Agente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Contraseña</Label>
+              <Input id="password" type="password" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+            </div>
+            <Button type="submit" variant="hero" className="w-full" disabled={saving}>
+              {saving ? "Creando…" : "Crear usuario"}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }

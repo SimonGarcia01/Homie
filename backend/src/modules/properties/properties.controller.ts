@@ -7,13 +7,14 @@ import { CreatePropertyDto } from './dto/create-property.dto';
 import { PropertyBalanceQueryDto } from './dto/property-balance-query.dto';
 import { PropertyExpenseReportQueryDto } from './dto/property-expense-report-query.dto';
 import { PropertyIncomeSummaryQueryDto } from './dto/property-income-summary-query.dto';
+import { PropertySearchQueryDto, PropertyStatsQueryDto } from './dto/property-search-query.dto';
 import { PropertyReportPdfQueryDto } from './dto/property-report-pdf-query.dto';
 import { UpdatePropertyExpenseDto } from './dto/update-property-expense.dto';
 import { UpdatePropertyIncomeDto } from './dto/update-property-income.dto';
 import { UpdatePropertyDto } from './dto/update-property.dto';
 import { PropertiesService } from './properties.service';
 
-type RequestWithOrg = { user: { organizationId: string } };
+type RequestWithOrg = { user: { id: string; organizationId: string; role: string } };
 
 @ApiTags('properties')
 @ApiBearerAuth()
@@ -29,6 +30,16 @@ export class PropertiesController {
     @Get()
     findAll(@Req() req: RequestWithOrg) {
         return this.service.findAll(req.user.organizationId);
+    }
+
+    @Get('search')
+    search(@Query() query: PropertySearchQueryDto, @Req() req: RequestWithOrg) {
+        return this.service.search(req.user.organizationId, req.user.id, query);
+    }
+
+    @Get('stats')
+    stats(@Query() query: PropertyStatsQueryDto, @Req() req: RequestWithOrg) {
+        return this.service.getStats(req.user.organizationId, req.user.id, query);
     }
 
     @Get(':id/report/pdf')
@@ -119,6 +130,11 @@ export class PropertiesController {
     @Delete(':id/expenses/:expenseId')
     removeExpense(@Param('id') id: string, @Param('expenseId') expenseId: string, @Req() req: RequestWithOrg) {
         return this.service.removeExpense(id, req.user.organizationId, expenseId);
+    }
+
+    @Get(':id/summary')
+    findSummary(@Param('id') id: string, @Req() req: RequestWithOrg) {
+        return this.service.findSummary(id, req.user.organizationId);
     }
 
     @Get(':id')

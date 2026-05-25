@@ -1,11 +1,12 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Sprout } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Sprout, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,12 +16,34 @@ import type { Owner, Property, PropertyType, PropertyStatus, PublishStatus } fro
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 
+const CREATE_OWNER_VALUE = "__create_owner__";
+
+type OwnerForm = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+};
+
+const emptyOwnerForm = (): OwnerForm => ({
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
+});
+
 export default function NewProperty() {
   const { user } = useAuth();
   const router = useRouter();
   const [owners, setOwners] = useState<Owner[]>([]);
+  const [ownersLoading, setOwnersLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [ownerDialogOpen, setOwnerDialogOpen] = useState(false);
+  const [ownerForm, setOwnerForm] = useState<OwnerForm>(emptyOwnerForm);
+  const [ownerFormErrors, setOwnerFormErrors] = useState<Partial<Record<keyof OwnerForm, string>>>({});
+  const [creatingOwner, setCreatingOwner] = useState(false);
 
   const [form, setForm] = useState<Omit<Property, "id" | "createdAt">>({
     title: "",
@@ -39,9 +62,18 @@ export default function NewProperty() {
     agentId: user?.id ?? "",
   });
 
-  useEffect(() => {
-    api.listOwners().then(setOwners);
+  const loadOwners = useCallback(async () => {
+    setOwnersLoading(true);
+    try {
+      setOwners(await api.listOwners());
+    } finally {
+      setOwnersLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    void loadOwners();
+  }, [loadOwners]);
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -52,11 +84,57 @@ export default function NewProperty() {
     if (!form.title.trim()) e.title = "Pon un título descriptivo.";
     if (!form.address.trim()) e.address = "La dirección es obligatoria.";
     if (!form.city.trim()) e.city = "La comuna es obligatoria.";
-    if (!form.ownerId) e.ownerId = "Selecciona un propietario.";
+    if (!form.ownerId) e.ownerId = "Selecciona o crea un propietario.";
     if (!form.rent || form.rent <= 0) e.rent = "El canon debe ser mayor a cero.";
     if (form.surface <= 0) e.surface = "Indica los metros cuadrados.";
     setErrors(e);
     return Object.keys(e).length === 0;
+  }
+
+  function validateOwnerForm(): boolean {
+    const e: Partial<Record<keyof OwnerForm, string>> = {};
+    if (!ownerForm.firstName.trim()) e.firstName = "El nombre es obligatorio.";
+    if (!ownerForm.lastName.trim()) e.lastName = "El apellido es obligatorio.";
+    if (ownerForm.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ownerForm.email.trim())) {
+      e.email = "Correo inválido.";
+    }
+    setOwnerFormErrors(e);
+    return Object.keys(e).length === 0;
+  }
+
+  async function handleCreateOwner(e: FormEvent) {
+    e.preventDefault();
+    if (!validateOwnerForm()) return;
+
+    setCreatingOwner(true);
+    try {
+      const created = await api.createOwner(ownerForm);
+      await loadOwners();
+      set("ownerId", created.id);
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next.ownerId;
+        return next;
+      });
+      setOwnerDialogOpen(false);
+      setOwnerForm(emptyOwnerForm());
+      setOwnerFormErrors({});
+      toast({ title: "Propietario agregado", description: `${created.name} quedó seleccionado.` });
+    } catch (err) {
+      toast({
+        title: "No se pudo crear el propietario",
+        description: err instanceof Error ? err.message : "Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setCreatingOwner(false);
+    }
+  }
+
+  function openOwnerDialog() {
+    setOwnerForm(emptyOwnerForm());
+    setOwnerFormErrors({});
+    setOwnerDialogOpen(true);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -111,13 +189,47 @@ export default function NewProperty() {
                 </SelectContent>
               </Select>
             </Field>
-            <Field label="Propietario" id="owner" error={errors.ownerId}>
-              <Select value={form.ownerId} onValueChange={(v) => set("ownerId", v)}>
-                <SelectTrigger id="owner"><SelectValue placeholder="Selecciona…" /></SelectTrigger>
-                <SelectContent>
-                  {owners.map((o) => <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>)}
-                </SelectContent>
-              </Select>
+            <Field
+              label="Propietario"
+              id="owner"
+              error={errors.ownerId}
+              action={
+                <Button type="button" variant="link" className="h-auto p-0 text-xs" onClick={openOwnerDialog}>
+                  <Plus className="h-3 w-3" /> Agregar propietario
+                </Button>
+              }
+            >
+              {ownersLoading ? (
+                <p className="text-sm text-muted-foreground py-2">Cargando propietarios…</p>
+              ) : owners.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-border bg-surface-muted/50 p-4 text-center space-y-3">
+                  <p className="text-sm text-muted-foreground">Aún no hay propietarios registrados.</p>
+                  <Button type="button" variant="soft" size="sm" onClick={openOwnerDialog}>
+                    <UserPlus className="h-4 w-4" /> Crear primer propietario
+                  </Button>
+                </div>
+              ) : (
+                <Select
+                  value={form.ownerId || undefined}
+                  onValueChange={(v) => {
+                    if (v === CREATE_OWNER_VALUE) {
+                      openOwnerDialog();
+                      return;
+                    }
+                    set("ownerId", v);
+                  }}
+                >
+                  <SelectTrigger id="owner"><SelectValue placeholder="Selecciona…" /></SelectTrigger>
+                  <SelectContent>
+                    {owners.map((o) => (
+                      <SelectItem key={o.id} value={o.id}>{o.name}</SelectItem>
+                    ))}
+                    <SelectItem value={CREATE_OWNER_VALUE} className="text-primary font-medium">
+                      + Nuevo propietario
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
             </Field>
           </div>
         </Section>
@@ -188,6 +300,60 @@ export default function NewProperty() {
           <Button type="button" variant="ghost" onClick={() => router.push("/app/propiedades")}>Cancelar</Button>
         </div>
       </form>
+
+      <Dialog open={ownerDialogOpen} onOpenChange={setOwnerDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">Nuevo propietario</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateOwner} className="space-y-4 mt-2" noValidate>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nombre" id="owner-first" error={ownerFormErrors.firstName}>
+                <Input
+                  id="owner-first"
+                  value={ownerForm.firstName}
+                  onChange={(e) => setOwnerForm((f) => ({ ...f, firstName: e.target.value }))}
+                  placeholder="María"
+                  autoFocus
+                />
+              </Field>
+              <Field label="Apellido" id="owner-last" error={ownerFormErrors.lastName}>
+                <Input
+                  id="owner-last"
+                  value={ownerForm.lastName}
+                  onChange={(e) => setOwnerForm((f) => ({ ...f, lastName: e.target.value }))}
+                  placeholder="González"
+                />
+              </Field>
+            </div>
+            <Field label="Correo (opcional)" id="owner-email" error={ownerFormErrors.email}>
+              <Input
+                id="owner-email"
+                type="email"
+                value={ownerForm.email}
+                onChange={(e) => setOwnerForm((f) => ({ ...f, email: e.target.value }))}
+                placeholder="maria@ejemplo.cl"
+              />
+            </Field>
+            <Field label="Teléfono (opcional)" id="owner-phone">
+              <Input
+                id="owner-phone"
+                value={ownerForm.phone}
+                onChange={(e) => setOwnerForm((f) => ({ ...f, phone: e.target.value }))}
+                placeholder="+56 9 1234 5678"
+              />
+            </Field>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="ghost" onClick={() => setOwnerDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" variant="hero" disabled={creatingOwner}>
+                {creatingOwner ? <Loader2 className="h-4 w-4 animate-spin" /> : "Guardar propietario"}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }
@@ -201,10 +367,25 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function Field({ label, id, error, children }: { label: string; id: string; error?: string; children: React.ReactNode }) {
+function Field({
+  label,
+  id,
+  error,
+  action,
+  children,
+}: {
+  label: string;
+  id: string;
+  error?: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center justify-between gap-2">
+        <Label htmlFor={id}>{label}</Label>
+        {action}
+      </div>
       {children}
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>

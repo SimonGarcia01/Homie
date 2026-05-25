@@ -83,4 +83,16 @@ export class CreatePropertyDto {
     @Type(() => Boolean)
     @IsBoolean()
     isVisible?: boolean;
+
+    @ApiPropertyOptional({ example: 2 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    bedrooms?: number;
+
+    @ApiPropertyOptional({ example: 1 })
+    @IsOptional()
+    @Type(() => Number)
+    @IsNumber()
+    bathrooms?: number;
 }

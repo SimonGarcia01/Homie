@@ -160,9 +160,13 @@ export default function Visits() {
                             </div>
                           )}
                           <div className="md:col-span-2 flex flex-wrap gap-2 pt-1">
-                            <Button size="sm" variant="hero"><CheckCircle2 className="h-4 w-4" /> Marcar como realizada</Button>
+                            <Button size="sm" variant="hero" onClick={async () => { await api.updateVisit(v.id, { status: "realizada" }); setItems(await api.listVisits()); }}>
+                              <CheckCircle2 className="h-4 w-4" /> Marcar como realizada
+                            </Button>
                             <Button size="sm" variant="soft">Reprogramar</Button>
-                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive"><XCircle className="h-4 w-4" /> Cancelar</Button>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={async () => { await api.updateVisit(v.id, { status: "cancelada" }); setItems(await api.listVisits()); }}>
+                              <XCircle className="h-4 w-4" /> Cancelar
+                            </Button>
                           </div>
                         </div>
                       </CollapsibleContent>

@@ -11,6 +11,21 @@ export type OwnerOption = {
     contactId: string;
     label: string;
     email: string | null;
+    phone?: string | null;
+};
+
+export type CreateOwnerPayload = {
+    firstName: string;
+    lastName: string;
+    email?: string;
+    phone?: string;
+    ownerType?: 'person' | 'company';
+};
+
+export type OwnerDetail = OwnerOption & {
+    ownerType: string;
+    firstName: string;
+    lastName: string;
 };
 
 function buildApiUrl(path: string): string {
@@ -74,4 +89,39 @@ export async function getOwnerOptions(): Promise<OwnerOption[] | ApiError> {
     }
 
     return payload;
+}
+
+function isOwnerDetail(value: unknown): value is OwnerDetail {
+    return (
+        isOwnerOption(value) &&
+        typeof (value as OwnerDetail).firstName === 'string' &&
+        typeof (value as OwnerDetail).lastName === 'string'
+    );
+}
+
+export async function createOwner(payload: CreateOwnerPayload): Promise<OwnerDetail | ApiError> {
+    const token = getAccessToken();
+    if (!token) {
+        return { error: 'Missing access token', status: 401 };
+    }
+
+    const response = await fetch(buildApiUrl('/api/owners'), {
+        method: 'POST',
+        headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+        return { error: await parseErrorResponse(response), status: response.status };
+    }
+
+    const data = (await response.json()) as unknown;
+    if (!isOwnerDetail(data)) {
+        return { error: 'Invalid owner response', status: 500 };
+    }
+
+    return data;
 }

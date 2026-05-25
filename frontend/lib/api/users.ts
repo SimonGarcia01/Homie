@@ -86,3 +86,27 @@ export async function toggleUserActive(userId: string, isActive: boolean): Promi
     body: JSON.stringify({ isActive }),
   });
 }
+
+export async function createUser(payload: {
+  organizationId: string;
+  roleId: string;
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+}): Promise<BackendUserRow | ApiError> {
+  return requestJson<BackendUserRow>("/api/users", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateUser(
+  userId: string,
+  payload: Partial<{ firstName: string; lastName: string; email: string; roleId: string; isActive: boolean; password: string }>,
+): Promise<BackendUserRow | ApiError> {
+  return requestJson<BackendUserRow>(`/api/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}

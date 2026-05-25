@@ -8,7 +8,7 @@ const steps = [
 ];
 
 export const Cultivate = () => (
-  <section id="operacion" className="relative bg-surface-muted/60 py-24 md:py-32 overflow-hidden">
+  <section id="operacion" className="relative bg-surface-muted/60 py-24 md:py-32 overflow-hidden scroll-mt-24">
     <div aria-hidden className="absolute inset-0 bg-grain opacity-30 mix-blend-multiply pointer-events-none" />
     <div className="container relative">
       <div className="max-w-2xl">

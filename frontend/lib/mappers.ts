@@ -112,8 +112,8 @@ export function mapBackendProperty(p: BackendProperty): Property {
     currency: mapCurrency(p.rentalDetail?.currency),
     status: COMMERCIAL_TO_UI[p.commercialStatus] ?? "disponible",
     publishStatus: PUBLICATION_TO_UI[p.publicationStatus] ?? "borrador",
-    bedrooms: 0,
-    bathrooms: 0,
+    bedrooms: p.feature?.bedrooms ?? 0,
+    bathrooms: p.feature?.bathrooms ?? 0,
     surface: 0,
     ownerId: p.ownerId,
     agentId: "",
@@ -143,6 +143,8 @@ export function mapUiPropertyToCreate(input: Omit<Property, "id" | "createdAt">)
     commercialStatus: UI_TO_COMMERCIAL[input.status] as BackendProperty["commercialStatus"],
     publicationStatus: UI_TO_PUBLICATION[input.publishStatus] as BackendProperty["publicationStatus"],
     isVisible: input.publishStatus === "publicada",
+    bedrooms: input.bedrooms,
+    bathrooms: input.bathrooms,
   };
 }
 
@@ -164,12 +166,12 @@ export function mapLoginUserToSafeUser(user: {
   };
 }
 
-export function mapBackendOwner(option: { id: string; label: string; email: string | null }): Owner {
+export function mapBackendOwner(option: { id: string; label: string; email: string | null; phone?: string | null }): Owner {
   return {
     id: option.id,
     name: option.label,
     email: option.email ?? "",
-    phone: "",
+    phone: option.phone ?? "",
   };
 }
 

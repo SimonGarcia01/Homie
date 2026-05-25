@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LeafBackdrop } from "./Decor";
 import { ArrowRight, Home, Sprout, FileText, CalendarCheck, Wallet, ShieldCheck, MapPin } from "lucide-react";
@@ -26,12 +27,14 @@ export const Hero = () => {
             </p>
 
             <div className="mt-9 flex flex-wrap items-center gap-3">
-              <Button variant="hero" size="xl" className="group">
-                Entrar a Homie
-                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              <Button asChild variant="hero" size="xl" className="group">
+                <Link href="/login">
+                  Entrar a Homie
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
               </Button>
-              <Button variant="soft" size="xl">
-                Ver catálogo
+              <Button asChild variant="soft" size="xl">
+                <Link href="/catalogo">Ver catálogo</Link>
               </Button>
             </div>
 

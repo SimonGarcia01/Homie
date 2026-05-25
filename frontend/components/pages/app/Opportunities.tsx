@@ -25,7 +25,7 @@ export default function Opportunities() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.listLeads().then((l) => { setItems(l); setLoading(false); });
+    api.listOpportunities().then((l) => { setItems(l); setLoading(false); });
   }, []);
 
   const byStage = useMemo(() => {

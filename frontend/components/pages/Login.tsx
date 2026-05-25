@@ -18,8 +18,9 @@ export default function Login() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const from = searchParams.get("from") ?? "/app";
-  const [email, setEmail] = useState("admin@boho.test");
-  const [password, setPassword] = useState("Admin1234!");
+  const isDemo = searchParams.get("demo") === "1";
+  const [email, setEmail] = useState(isDemo ? "admin@boho.test" : "");
+  const [password, setPassword] = useState(isDemo ? "Admin1234!" : "");
   const [loading, setLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<LoginField, string>>>({});
@@ -79,6 +80,12 @@ export default function Login() {
             Bienvenido de vuelta
           </h1>
           <p className="mt-2 text-muted-foreground">Ingresa a tu jardín de arriendos.</p>
+
+          {isDemo && (
+            <p className="mt-4 text-sm rounded-lg bg-primary/10 text-primary px-3 py-2">
+              Modo demo: credenciales precargadas. Pulsa entrar para explorar.
+            </p>
+          )}
 
           <form onSubmit={onSubmit} className="mt-8 space-y-5" noValidate>
             {formError && (

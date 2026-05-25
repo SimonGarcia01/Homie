@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { FileText, Search, Upload, Download, AlertTriangle, CheckCircle2, Clock, XCircle, Home as HomeIcon, User as UserIcon } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/mock/api";
 import type { Document, Lead, Owner, Property } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 type DocRow = Document & { property?: Property; lead?: Lead; owner?: Owner };
 
@@ -27,9 +28,12 @@ export default function Documents() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<"todos" | Document["status"]>("todos");
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const reload = () => api.listDocuments().then((d) => { setItems(d); setLoading(false); });
 
   useEffect(() => {
-    api.listDocuments().then((d) => { setItems(d); setLoading(false); });
+    reload();
   }, []);
 
   const filtered = useMemo(() => items.filter((d) => {
@@ -52,7 +56,26 @@ export default function Documents() {
           <h1 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">Documentos</h1>
           <p className="text-muted-foreground mt-1">El respaldo silencioso que sostiene cada operación.</p>
         </div>
-        <Button variant="hero" size="lg"><Upload className="h-4 w-4" /> Subir documento</Button>
+        <Button variant="hero" size="lg" onClick={() => fileRef.current?.click()}>
+          <Upload className="h-4 w-4" /> Subir documento
+        </Button>
+        <input
+          ref={fileRef}
+          type="file"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            try {
+              await api.uploadDocument(file);
+              await reload();
+              toast({ title: "Documento subido" });
+            } catch (err) {
+              toast({ title: "Error", description: err instanceof Error ? err.message : "Upload failed", variant: "destructive" });
+            }
+            e.target.value = "";
+          }}
+        />
       </header>
 
       <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -120,7 +143,9 @@ export default function Documents() {
                   <span className={cn("text-[10px] uppercase tracking-wide px-2 py-1 rounded-full border inline-flex items-center gap-1 shrink-0", meta.tone)}>
                     <Icon className="h-3 w-3" /> {meta.label}
                   </span>
-                  <Button variant="ghost" size="sm" className="shrink-0"><Download className="h-4 w-4" /></Button>
+                  <Button variant="ghost" size="sm" className="shrink-0" onClick={() => api.downloadDocument(d.id)}>
+                    <Download className="h-4 w-4" />
+                  </Button>
                 </li>
               );
             })}

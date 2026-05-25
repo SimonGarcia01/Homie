@@ -8,3 +8,5 @@ export * from "./finanzas";
 export * from "./property-incomes";
 export * from "./property-images";
 export * from "./users";
+export * from "./public-properties";
+export * from "./crm";

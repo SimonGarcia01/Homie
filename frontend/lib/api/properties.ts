@@ -43,6 +43,7 @@ export type Property = {
     coverImageUrl?: string | null;
     rentalDetail?: PropertyRentalDetailInfo | null;
     location?: PropertyLocationInfo | null;
+    feature?: { bedrooms: number; bathrooms: number; isFurnished?: boolean; petsAllowed?: boolean } | null;
 };
 
 export type CreatePropertyPayload = {
@@ -59,6 +60,8 @@ export type CreatePropertyPayload = {
     commercialStatus?: PropertyCommercialStatus;
     publicationStatus?: PropertyPublicationStatus;
     isVisible?: boolean;
+    bedrooms?: number;
+    bathrooms?: number;
 };
 
 function buildApiUrl(path: string): string {
@@ -190,6 +193,27 @@ export async function createProperty(payload: CreatePropertyPayload): Promise<Pr
     }
 
     return response;
+}
+
+export async function getPropertyById(id: string): Promise<Property | ApiError> {
+    const response = await requestJson<unknown>(`/api/properties/${id}`);
+    if (isApiError(response)) return response;
+    if (!isProperty(response)) return { error: 'Invalid property response', status: 500 };
+    return response;
+}
+
+export async function updateProperty(id: string, payload: Partial<CreatePropertyPayload>): Promise<Property | ApiError> {
+    const response = await requestJson<unknown>(`/api/properties/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+    });
+    if (isApiError(response)) return response;
+    if (!isProperty(response)) return { error: 'Invalid update property response', status: 500 };
+    return response;
+}
+
+export async function deleteProperty(id: string): Promise<{ id: string } | ApiError> {
+    return requestJson<{ id: string }>(`/api/properties/${id}`, { method: 'DELETE' });
 }
 
 export async function downloadPropertyRecordsPdf(

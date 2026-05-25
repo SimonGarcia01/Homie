@@ -1,14 +1,34 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsEnum, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+
+import { OwnerType } from '../../../common/enums';
 
 export class CreateOwnerDto {
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsUUID()
-    organizationId?: string;
+    @ApiProperty()
+    @IsString()
+    @MinLength(1)
+    @MaxLength(100)
+    firstName!: string;
 
-    @ApiProperty({ required: false })
+    @ApiProperty()
+    @IsString()
+    @MinLength(1)
+    @MaxLength(100)
+    lastName!: string;
+
+    @ApiPropertyOptional()
+    @IsOptional()
+    @IsEmail()
+    email?: string;
+
+    @ApiPropertyOptional()
     @IsOptional()
     @IsString()
-    name?: string;
+    @MaxLength(30)
+    phone?: string;
+
+    @ApiPropertyOptional({ enum: OwnerType, default: OwnerType.PERSON })
+    @IsOptional()
+    @IsEnum(OwnerType)
+    ownerType?: OwnerType;
 }

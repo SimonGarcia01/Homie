@@ -5,6 +5,7 @@ import { Repository } from 'typeorm';
 
 import { UserRoleName } from '../../common/enums';
 import { OrganizationsService } from '../organizations/organizations.service';
+import { PipelinesService } from '../opportunities/pipelines.service';
 import { Role } from '../roles/entities/role.entity';
 import { UsersService } from '../users/users.service';
 
@@ -15,6 +16,7 @@ export class AuthService {
     constructor(
         private readonly usersService: UsersService,
         private readonly organizationsService: OrganizationsService,
+        private readonly pipelinesService: PipelinesService,
         @InjectRepository(Role)
         private readonly rolesRepository: Repository<Role>,
     ) {}
@@ -64,6 +66,8 @@ export class AuthService {
             name: dto.organizationName,
             country: dto.country,
         });
+
+        await this.pipelinesService.ensureDefaultPipeline(organization.id);
 
         const user = await this.usersService.create({
             organizationId: organization.id,

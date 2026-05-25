@@ -5,10 +5,15 @@ import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGri
 import { Coins, Receipt, Plus, Home as HomeIcon, TrendingUp, TrendingDown, Calendar } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/mock/api";
 import type { Finance, Property } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 type Row = Finance & { property?: Property };
 
@@ -17,10 +22,16 @@ const fmtCLP = (n: number) => new Intl.NumberFormat("es-CL", { style: "currency"
 export default function FinancesPage({ kind }: { kind: "ingreso" | "gasto" }) {
   const [items, setItems] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [form, setForm] = useState({ propertyId: "", amount: "", date: new Date().toISOString().slice(0, 10), concept: "" });
+
+  const reload = () => api.listFinances(kind).then((r) => { setItems(r); setLoading(false); });
 
   useEffect(() => {
     setLoading(true);
-    api.listFinances(kind).then((r) => { setItems(r); setLoading(false); });
+    reload();
+    api.listProperties().then(setProperties);
   }, [kind]);
 
   const total = useMemo(() => items.reduce((a, b) => a + b.amount, 0), [items]);
@@ -55,7 +66,9 @@ export default function FinancesPage({ kind }: { kind: "ingreso" | "gasto" }) {
             {isIngreso ? "Lo que florece y vuelve a la cartera." : "Lo que invertimos para mantener todo creciendo."}
           </p>
         </div>
-        <Button variant="hero" size="lg"><Plus className="h-4 w-4" /> Registrar {isIngreso ? "ingreso" : "gasto"}</Button>
+        <Button variant="hero" size="lg" onClick={() => setOpen(true)}>
+          <Plus className="h-4 w-4" /> Registrar {isIngreso ? "ingreso" : "gasto"}
+        </Button>
       </header>
 
       <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -117,6 +130,60 @@ export default function FinancesPage({ kind }: { kind: "ingreso" | "gasto" }) {
           </ul>
         )}
       </section>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Registrar {isIngreso ? "ingreso" : "gasto"}</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-4 mt-2"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              try {
+                await api.createFinance({
+                  kind,
+                  propertyId: form.propertyId,
+                  amount: Number(form.amount),
+                  date: form.date,
+                  concept: form.concept,
+                });
+                setOpen(false);
+                setLoading(true);
+                await reload();
+                toast({ title: "Movimiento registrado" });
+              } catch (err) {
+                toast({ title: "Error", description: err instanceof Error ? err.message : "No se pudo registrar", variant: "destructive" });
+              }
+            }}
+          >
+            <div className="space-y-2">
+              <Label>Propiedad</Label>
+              <Select value={form.propertyId} onValueChange={(v) => setForm({ ...form, propertyId: v })}>
+                <SelectTrigger><SelectValue placeholder="Selecciona…" /></SelectTrigger>
+                <SelectContent>
+                  {properties.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Monto (CLP)</Label>
+              <Input type="number" min={1} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Fecha</Label>
+              <Input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Concepto</Label>
+              <Input value={form.concept} onChange={(e) => setForm({ ...form, concept: e.target.value })} required />
+            </div>
+            <Button type="submit" variant="hero" className="w-full">Guardar</Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </AppShell>
   );
 }

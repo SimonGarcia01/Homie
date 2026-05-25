@@ -2,36 +2,42 @@ import { Home, Sprout, CalendarCheck, FileText, Wallet, TrendingUp } from "lucid
 
 const features = [
   {
+    id: "cartera",
     icon: Home,
     title: "Tu cartera, como un jardín",
     body: "Cada propiedad tiene su lugar. Imágenes, propietarios, contratos y notas, todo cuidado en un mismo espacio.",
     tone: "bg-primary/10 text-primary",
   },
   {
+    id: "oportunidades",
     icon: Sprout,
     title: "Oportunidades en crecimiento",
     body: "Acompaña a cada interesado desde el primer contacto hasta el cierre con un pipeline tranquilo y claro.",
     tone: "bg-secondary/15 text-secondary",
   },
   {
+    id: "visitas",
     icon: CalendarCheck,
     title: "Visitas con calma",
     body: "Agenda, recuerda y haz seguimiento sin estrés. Cada visita es un paso de cuidado para tu oportunidad.",
     tone: "bg-accent/15 text-accent",
   },
   {
+    id: "cuidado",
     icon: FileText,
     title: "Documentos en orden",
     body: "Contratos, certificados y soportes guardados como raíces firmes para cada proceso de arriendo.",
     tone: "bg-warning/15 text-warning",
   },
   {
+    id: "finanzas",
     icon: Wallet,
     title: "Finanzas claras",
     body: "Cobros, pagos y balances mensuales presentados con calidez y sin números que abrumen.",
     tone: "bg-success/15 text-success",
   },
   {
+    id: "reportes",
     icon: TrendingUp,
     title: "Reportes para cosechar",
     body: "Resúmenes mensuales listos para enviar al propietario con la confianza de un trabajo bien hecho.",
@@ -56,7 +62,8 @@ export const Features = () => (
         {features.map((f, i) => (
           <article
             key={f.title}
-            className="group rounded-3xl border border-border bg-surface p-6 shadow-soft transition-all duration-500 hover:shadow-card hover:-translate-y-1"
+            id={f.id}
+            className="group rounded-3xl border border-border bg-surface p-6 shadow-soft transition-all duration-500 hover:shadow-card hover:-translate-y-1 scroll-mt-24"
             style={{ animationDelay: `${i * 60}ms` }}
           >
             <span className={`inline-flex h-11 w-11 items-center justify-center rounded-2xl ${f.tone}`}>

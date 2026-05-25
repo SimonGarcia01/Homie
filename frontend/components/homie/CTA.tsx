@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sprout } from "lucide-react";
 
@@ -28,12 +29,14 @@ export const CTA = () => (
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
-            <Button size="xl" variant="warm" className="group">
-              Entrar a Homie
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            <Button asChild size="xl" variant="warm" className="group">
+              <Link href="/login">
+                Entrar a Homie
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </Button>
-            <Button size="xl" variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/10 rounded-full">
-              Explorar demo
+            <Button asChild size="xl" variant="ghost" className="text-primary-foreground hover:bg-primary-foreground/10 rounded-full">
+              <Link href="/login?demo=1">Explorar demo</Link>
             </Button>
           </div>
         </div>

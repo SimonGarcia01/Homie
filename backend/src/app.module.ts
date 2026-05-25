@@ -10,6 +10,7 @@ import { RolesGuard } from './common/auth/roles.guard';
 import { StorageModule } from './common/storage/storage.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { AmenitiesModule } from './modules/amenities/amenities.module';
+import { AssistantModule } from './modules/assistant/assistant.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
 import { DocumentsModule } from './modules/documents/documents.module';
@@ -64,6 +65,7 @@ import { VisitsModule } from './modules/visits/visits.module';
         PropertiesModule,
         OpportunitiesModule,
         ActivitiesModule,
+        AssistantModule,
         TasksModule,
         VisitsModule,
         RentalApplicationsModule,
