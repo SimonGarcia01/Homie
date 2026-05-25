@@ -142,9 +142,12 @@ export default function NewProperty() {
     if (!validate()) return;
     setSubmitting(true);
     try {
-      await api.createProperty(form);
-      toast({ title: "Propiedad sembrada 🌱", description: "Aparece ahora en tu jardín." });
-      router.push("/app/propiedades");
+      const created = await api.createProperty(form);
+      toast({
+        title: "Propiedad sembrada 🌱",
+        description: "Agrega fotos para completar la ficha.",
+      });
+      router.push(`/app/propiedades?open=${created.id}&photos=1`);
     } catch (err) {
       toast({ title: "No se pudo guardar", description: err instanceof Error ? err.message : "Intenta de nuevo." });
     } finally {

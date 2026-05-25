@@ -6,19 +6,20 @@ import { MessageSquare, RotateCcw, Send, Sparkles, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
 import {
   getAssistantSessionId,
   resetAssistantSessionId,
   sendAssistantMessage,
   type AssistantChatMessage,
+  type AssistantPropertyPreview,
 } from "@/lib/api/assistant";
 import { translateAuthError } from "@/lib/auth-messages";
+import { AssistantMessageBubble } from "@/components/assistant/AssistantMessageBubble";
 
 const SUGGESTIONS = [
   "¿Cuántas casas disponibles tengo?",
-  "Propiedades arrendadas",
   "Resumen del portafolio",
+  "Agrega un depto en Providencia, 850 mil, de María González",
 ];
 
 function isApiError(value: unknown): value is { error: string; status?: number } {
@@ -29,6 +30,7 @@ export function AssistantWidget() {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
   const [sessionId, setSessionId] = useState(() => getAssistantSessionId());
+  const [pendingPreview, setPendingPreview] = useState<AssistantPropertyPreview | null>(null);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -43,6 +45,7 @@ export function AssistantWidget() {
     const nextSession = resetAssistantSessionId();
     setSessionId(nextSession);
     setMessages([]);
+    setPendingPreview(null);
     setInput("");
   }, []);
 
@@ -66,7 +69,17 @@ export function AssistantWidget() {
           ]);
         } else {
           setSessionId(result.sessionId);
-          setMessages((prev) => [...prev, { role: "assistant", content: result.message }]);
+          if (result.preview) setPendingPreview(result.preview);
+          else if (result.toolsUsed?.includes("confirmar_crear_propiedad")) setPendingPreview(null);
+
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              content: result.message,
+              preview: result.preview ?? undefined,
+            },
+          ]);
         }
       } catch {
         setMessages((prev) => [
@@ -148,27 +161,33 @@ export function AssistantWidget() {
               )}
 
               {messages.map((msg, i) => (
-                <div
-                  key={`${msg.role}-${i}`}
-                  className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
-                >
-                  <div
-                    className={cn(
-                      "max-w-[85%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
-                      msg.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "border border-border bg-surface-muted text-foreground",
-                    )}
-                  >
-                    {msg.content}
-                  </div>
-                </div>
+                <AssistantMessageBubble key={`${msg.role}-${i}`} msg={msg} />
               ))}
 
-              {loading && (
+              {pendingPreview && !loading && (
                 <div className="flex justify-start">
-                  <div className="rounded-2xl border border-border bg-surface-muted px-4 py-2.5 text-sm text-muted-foreground">
-                    Consultando tu portafolio…
+                  <button
+                    type="button"
+                    className="rounded-full border border-primary bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition hover:bg-primary/20"
+                    onClick={() => sendMessage("Sí, créala")}
+                  >
+                    Sí, créala
+                  </button>
+                </div>
+              )}
+
+              {loading && (
+                <div className="flex gap-2">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-surface text-muted-foreground">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-primary" />
+                  </div>
+                  <div className="rounded-2xl rounded-tl-md border border-border bg-surface px-4 py-3 text-sm text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5">
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.2s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary [animation-delay:-0.1s]" />
+                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-primary" />
+                    </span>
+                    <span className="ml-2">Consultando tu portafolio…</span>
                   </div>
                 </div>
               )}

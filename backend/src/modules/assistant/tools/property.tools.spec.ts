@@ -8,7 +8,7 @@ import { PropertyTools } from './property.tools';
 describe('PropertyTools', () => {
     const orgId = 'org-1';
     const userId = 'user-1';
-    const ctx = { userId, organizationId: orgId, role: 'agent', email: 'a@test.com' };
+    const ctx = { userId, organizationId: orgId, role: 'agent', email: 'a@test.com', sessionId: 'sess-1' };
 
     let propertiesService: jest.Mocked<Pick<PropertiesService, 'search' | 'findSummary' | 'getStats'>>;
     let usersService: jest.Mocked<Pick<UsersService, 'findOne'>>;

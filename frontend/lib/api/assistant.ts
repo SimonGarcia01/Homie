@@ -1,14 +1,34 @@
 import { buildPublicApiUrl } from './api-base';
 import { getAccessToken } from './auth';
 
+export type AssistantPropertyPreview = {
+  titulo: string;
+  tipo: string;
+  propietario: string;
+  propietarioId: string;
+  arriendoMensual: number;
+  moneda: string;
+  ciudad: string;
+  pais: string;
+  direccion: string | null;
+  dormitorios: number;
+  banos: number;
+  estadoComercial: string;
+  estadoPublicacion: string;
+  codigoPropuesto: string;
+  descripcion: string | null;
+};
+
 export type AssistantChatMessage = {
   role: 'user' | 'assistant';
   content: string;
+  preview?: AssistantPropertyPreview;
 };
 
 export type AssistantChatResponse = {
   sessionId: string;
   message: string;
+  preview?: AssistantPropertyPreview | null;
   toolsUsed?: string[];
   usage?: { promptTokens: number; completionTokens: number };
 };

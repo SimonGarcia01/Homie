@@ -6,9 +6,14 @@ import { AssistantContextService } from './assistant-context.service';
 import { AssistantSessionService } from './assistant-session.service';
 import { ChatRequestDto } from './dto/chat.dto';
 import { OpenAiService } from './llm/openai.service';
+import {
+    buildVerifiedPortfolioBlock,
+    isPortfolioCountQuery,
+    wantsAssignedPropertiesOnly,
+} from './portfolio-query.util';
 import { buildSystemPrompt } from './prompts/build-system-prompt';
-import { ASSISTANT_TOOLS, type AssistantToolName } from './tools/tool-registry';
-import { ToolExecutor } from './tools/property.tools';
+import { ASSISTANT_TOOLS, type AssistantPropertyPreview, type AssistantToolName } from './tools/tool-registry';
+import { ToolExecutor, type ToolContext } from './tools/property.tools';
 
 type AuthUser = { id: string; email: string; organizationId: string; role: string };
 
@@ -27,7 +32,7 @@ export class AssistantService {
         private readonly sessionService: AssistantSessionService,
         configService: ConfigService,
     ) {
-        this.maxToolRounds = Number(configService.get<string>('ASSISTANT_MAX_TOOL_ROUNDS', '5'));
+        this.maxToolRounds = Number(configService.get<string>('ASSISTANT_MAX_TOOL_ROUNDS', '8'));
         this.rateLimitPerMin = Number(configService.get<string>('ASSISTANT_RATE_LIMIT_PER_MIN', '20'));
     }
 
@@ -42,6 +47,7 @@ export class AssistantService {
             organizationId: user.organizationId,
             role: user.role,
             email: user.email,
+            sessionId,
         };
 
         if (dto.message?.trim()) {
@@ -55,7 +61,8 @@ export class AssistantService {
 
         const session = this.sessionService.getOrCreate(sessionId, user.organizationId, user.id);
         const contextBlock = this.contextService.buildContextBlock(user.organizationId, user.id, sessionId);
-        const systemContent = buildSystemPrompt(contextBlock);
+        const verifiedPortfolioBlock = await this.maybePrefetchPortfolio(userMessage, ctx);
+        const systemContent = buildSystemPrompt(contextBlock, verifiedPortfolioBlock);
 
         const messages: ChatCompletionMessageParam[] = [
             { role: 'system', content: systemContent },
@@ -63,6 +70,7 @@ export class AssistantService {
         ];
 
         const toolsUsed: string[] = [];
+        let preview: AssistantPropertyPreview | null = null;
         let usage = { promptTokens: 0, completionTokens: 0 };
 
         try {
@@ -87,6 +95,7 @@ export class AssistantService {
                     return {
                         sessionId,
                         message: assistantMsg.content?.trim() || 'No tengo una respuesta en este momento.',
+                        preview,
                         toolsUsed,
                         usage,
                     };
@@ -105,6 +114,10 @@ export class AssistantService {
 
                     toolsUsed.push(name);
                     const result = await this.toolExecutor.execute(name, parsedArgs, ctx);
+
+                    if (name === 'preparar_propiedad' && this.isPreviewResult(result)) {
+                        preview = result.vistaPrevia;
+                    }
 
                     this.contextService.record(
                         user.organizationId,
@@ -129,17 +142,65 @@ export class AssistantService {
             return {
                 sessionId,
                 message: 'No pude completar la consulta. Intenta reformular tu pregunta.',
+                preview,
                 toolsUsed,
                 usage,
             };
-        } catch {
+        } catch (err) {
+            const message =
+                err instanceof HttpException
+                    ? (typeof err.getResponse() === 'string'
+                          ? err.getResponse()
+                          : ((err.getResponse() as { message?: string }).message ?? err.message))
+                    : 'No pude consultar tu portafolio. Intenta de nuevo en unos segundos.';
+
             return {
                 sessionId,
-                message: 'No pude consultar tu portafolio. Intenta de nuevo en unos segundos.',
+                message: typeof message === 'string' ? message : 'No pude consultar tu portafolio. Intenta de nuevo.',
+                preview,
                 toolsUsed,
                 usage,
             };
         }
+    }
+
+    private isPreviewResult(value: unknown): value is { vistaPrevia: AssistantPropertyPreview } {
+        return (
+            typeof value === 'object' &&
+            value !== null &&
+            'vistaPrevia' in value &&
+            typeof (value as { vistaPrevia: unknown }).vistaPrevia === 'object'
+        );
+    }
+
+    private async maybePrefetchPortfolio(userMessage: string, ctx: ToolContext): Promise<string | null> {
+        if (!isPortfolioCountQuery(userMessage)) return null;
+
+        const assignedToMe = wantsAssignedPropertiesOnly(userMessage);
+        const countResult = await this.toolExecutor.execute('contar_propiedades', { assignedToMe }, ctx);
+        const stats = await this.toolExecutor.execute('estadisticas_portafolio', { assignedToMe }, ctx);
+
+        let listResult: unknown;
+        const count =
+            typeof countResult === 'object' && countResult !== null && 'count' in countResult
+                ? Number((countResult as { count: number }).count)
+                : 0;
+
+        if (count > 0 && count <= 10) {
+            listResult = await this.toolExecutor.execute('listar_propiedades', { limite: 10, assignedToMe }, ctx);
+        }
+
+        this.contextService.record(
+            ctx.organizationId,
+            ctx.userId,
+            ctx.sessionId,
+            'contar_propiedades',
+            { assignedToMe, prefetch: true },
+            { assignedToMe },
+            countResult,
+        );
+
+        return buildVerifiedPortfolioBlock(stats, countResult, listResult);
     }
 
     private resolveUserMessage(dto: ChatRequestDto): string {

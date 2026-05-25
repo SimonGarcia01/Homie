@@ -76,6 +76,26 @@ export class OwnersService {
         return this.toView(owner);
     }
 
+    async search(organizationId: string, query: string) {
+        const trimmed = query.trim();
+        if (!trimmed) return [];
+
+        const q = `%${trimmed}%`;
+        const rows = await this.repository
+            .createQueryBuilder('owner')
+            .leftJoinAndSelect('owner.contact', 'contact')
+            .where('owner.organization_id = :organizationId', { organizationId })
+            .andWhere(
+                `(contact.first_name ILIKE :q OR contact.last_name ILIKE :q OR CONCAT(contact.first_name, ' ', contact.last_name) ILIKE :q OR contact.email ILIKE :q)`,
+                { q },
+            )
+            .orderBy('owner.createdAt', 'DESC')
+            .take(10)
+            .getMany();
+
+        return rows.map((owner) => this.toView(owner));
+    }
+
     async create(organizationId: string, dto: CreateOwnerDto) {
         const contact = await this.contactsService.create(organizationId, {
             firstName: dto.firstName,

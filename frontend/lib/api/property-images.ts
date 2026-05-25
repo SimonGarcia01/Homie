@@ -1,6 +1,5 @@
+import { buildPublicApiUrl } from './api-base';
 import { getAuthHeader } from './auth';
-
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, '') ?? '';
 
 export const ALLOWED_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 export const ALLOWED_IMAGE_EXTENSIONS_LABEL = 'JPG, PNG, WEBP';
@@ -41,8 +40,7 @@ export type SetCoverResponse = PropertyImage | ApiError;
 export type DeleteImageResponse = { id: string; newCoverId: string | null } | ApiError;
 
 function buildApiUrl(path: string): string {
-    const normalized = path.startsWith('/') ? path : `/${path}`;
-    return API_BASE_URL ? `${API_BASE_URL}${normalized}` : normalized;
+    return buildPublicApiUrl(path);
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

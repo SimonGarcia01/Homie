@@ -6,8 +6,11 @@ import {
   Calendar, MessageSquare, Heart, Leaf, Building2, Phone, Mail,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { resolveMediaUrl } from "@/lib/media-url";
 import type { Property, Owner } from "@/lib/mock/db";
-import { api } from "@/lib/mock/api";
+import { api, can } from "@/lib/mock/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { PropertyImageManager } from "@/components/properties/PropertyImageManager";
 
 const STATUS_TONE: Record<Property["status"], string> = {
   disponible: "bg-primary/10 text-primary border-primary/20",
@@ -30,23 +33,45 @@ const TYPE_LABEL: Record<Property["type"], string> = {
 };
 
 export function PropertyDetailDialog({
-  property, open, onOpenChange,
+  property,
+  open,
+  onOpenChange,
+  focusPhotos = false,
+  onImagesUpdated,
 }: {
   property: Property | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  focusPhotos?: boolean;
+  onImagesUpdated?: (propertyId: string, urls: string[]) => void;
 }) {
+  const { user } = useAuth();
   const [idx, setIdx] = useState(0);
   const [owner, setOwner] = useState<Owner | null>(null);
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+
+  const canManagePhotos = can(user?.role, "properties.edit");
 
   useEffect(() => { setIdx(0); }, [property?.id]);
+  useEffect(() => {
+    setGalleryUrls(property?.images?.map((url) => resolveMediaUrl(url)) ?? []);
+  }, [property?.id, property?.images]);
+
   useEffect(() => {
     if (!property) return;
     api.listOwners().then((os) => setOwner(os.find((o) => o.id === property.ownerId) ?? null));
   }, [property?.id]);
 
   if (!property) return null;
-  const images = property.images ?? [];
+  const images = galleryUrls;
+  const propertyId = property.id;
+
+  function handleImagesChange(urls: string[]) {
+    setGalleryUrls(urls);
+    setIdx(0);
+    onImagesUpdated?.(propertyId, urls);
+  }
+
   const cover = images[idx];
 
   return (
@@ -122,7 +147,7 @@ export function PropertyDetailDialog({
           <div className="px-6 pt-4 flex gap-2 overflow-x-auto">
             {images.map((src, i) => (
               <button
-                key={i}
+                key={src + i}
                 type="button"
                 onClick={() => setIdx(i)}
                 className={cn(
@@ -146,6 +171,13 @@ export function PropertyDetailDialog({
               <Fact icon={Ruler} label="Superficie" value={`${property.surface} m²`} />
               <Fact icon={Home} label="Tipo" value={TYPE_LABEL[property.type]} />
             </div>
+
+            <PropertyImageManager
+              propertyId={property.id}
+              canManage={canManagePhotos}
+              focusUpload={focusPhotos}
+              onImagesChange={handleImagesChange}
+            />
 
             <section>
               <h3 className="font-display text-lg font-semibold flex items-center gap-2">

@@ -27,6 +27,14 @@ export type PropertyLocationInfo = {
     address?: string | null;
 };
 
+export type PropertyImageInfo = {
+    id: string;
+    imageUrl?: string;
+    url?: string;
+    isCover?: boolean;
+    sortOrder?: number;
+};
+
 export type Property = {
     id: string;
     organizationId: string;
@@ -41,6 +49,7 @@ export type Property = {
     createdAt: string;
     updatedAt: string;
     coverImageUrl?: string | null;
+    images?: PropertyImageInfo[] | null;
     rentalDetail?: PropertyRentalDetailInfo | null;
     location?: PropertyLocationInfo | null;
     feature?: { bedrooms: number; bathrooms: number; isFurnished?: boolean; petsAllowed?: boolean } | null;

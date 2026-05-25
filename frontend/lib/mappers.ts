@@ -8,6 +8,7 @@ import type {
   Owner,
 } from "@/lib/mock/db";
 import type { Property as BackendProperty } from "@/lib/api/properties";
+import { resolveMediaUrl } from "@/lib/media-url";
 import { translateAuthError } from "@/lib/auth-messages";
 
 type ApiError = { error: string; status?: number };
@@ -99,6 +100,23 @@ function mapCurrency(raw?: string | null): Property["currency"] {
   return "CLP";
 }
 
+function mapPropertyImageUrls(p: BackendProperty): string[] {
+  const fromRelation = (p.images ?? [])
+    .slice()
+    .sort((a, b) => {
+      const aCover = a.isCover ? 1 : 0;
+      const bCover = b.isCover ? 1 : 0;
+      if (aCover !== bCover) return bCover - aCover;
+      return (a.sortOrder ?? 0) - (b.sortOrder ?? 0);
+    })
+    .map((img) => resolveMediaUrl(img.url ?? img.imageUrl ?? ""))
+    .filter(Boolean);
+
+  if (fromRelation.length) return fromRelation;
+  if (p.coverImageUrl) return [resolveMediaUrl(p.coverImageUrl)];
+  return [];
+}
+
 export function mapBackendProperty(p: BackendProperty): Property {
   const rent = Number.parseFloat(p.rentalDetail?.monthlyRent ?? "0") || 0;
   return {
@@ -118,7 +136,7 @@ export function mapBackendProperty(p: BackendProperty): Property {
     ownerId: p.ownerId,
     agentId: "",
     createdAt: p.createdAt,
-    images: p.coverImageUrl ? [p.coverImageUrl] : [],
+    images: mapPropertyImageUrls(p),
   };
 }
 

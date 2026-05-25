@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Home, Plus, Search, MapPin, BedDouble, Bath, Ruler, ImageOff } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { api, can } from "@/lib/mock/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Property } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
+import { resolveMediaUrl } from "@/lib/media-url";
 import { PropertyDetailDialog } from "@/components/properties/PropertyDetailDialog";
 import { PropertyMap } from "@/components/properties/PropertyMap";
 
@@ -32,18 +34,42 @@ function formatRent(p: Property) {
 
 export default function Properties() {
   const { user } = useAuth();
+  const searchParams = useSearchParams();
   const [items, setItems] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"todas" | Property["status"]>("todas");
   const [selected, setSelected] = useState<Property | null>(null);
+  const [focusPhotos, setFocusPhotos] = useState(false);
   const [view, setView] = useState<"grid" | "map">("grid");
 
-  useEffect(() => {
-    api.listProperties().then((p) => {
+  const refreshProperties = useCallback(() => {
+    return api.listProperties().then((p) => {
       setItems(p);
       setLoading(false);
+      return p;
     });
+  }, []);
+
+  useEffect(() => {
+    void refreshProperties();
+  }, [refreshProperties]);
+
+  useEffect(() => {
+    const openId = searchParams.get("open");
+    const photos = searchParams.get("photos");
+    if (!openId || loading) return;
+
+    const match = items.find((p) => p.id === openId);
+    if (match) {
+      setSelected(match);
+      setFocusPhotos(photos === "1");
+    }
+  }, [searchParams, items, loading]);
+
+  const handleImagesUpdated = useCallback((propertyId: string, urls: string[]) => {
+    setItems((prev) => prev.map((p) => (p.id === propertyId ? { ...p, images: urls } : p)));
+    setSelected((prev) => (prev?.id === propertyId ? { ...prev, images: urls } : prev));
   }, []);
 
   const filtered = items.filter((p) => {
@@ -108,7 +134,7 @@ export default function Properties() {
       ) : (
         <ul className="mt-6 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtered.map((p) => {
-            const cover = p.images?.[0];
+            const cover = p.images?.[0] ? resolveMediaUrl(p.images[0]) : undefined;
             return (
               <li key={p.id}>
                 <button
@@ -159,7 +185,14 @@ export default function Properties() {
       <PropertyDetailDialog
         property={selected}
         open={!!selected}
-        onOpenChange={(v) => !v && setSelected(null)}
+        focusPhotos={focusPhotos}
+        onOpenChange={(v) => {
+          if (!v) {
+            setSelected(null);
+            setFocusPhotos(false);
+          }
+        }}
+        onImagesUpdated={handleImagesUpdated}
       />
     </AppShell>
   );

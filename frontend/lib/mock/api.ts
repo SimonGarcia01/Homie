@@ -13,6 +13,14 @@ import {
 import * as backendAuth from "@/lib/api/auth";
 import { sendAssistantMessage, type AssistantSendPayload } from "@/lib/api/assistant";
 import { listPropertiesFull, createProperty as createBackendProperty } from "@/lib/api/properties";
+import {
+  listPropertyImages as fetchPropertyImages,
+  uploadPropertyImages as uploadBackendPropertyImages,
+  deletePropertyImage as deleteBackendPropertyImage,
+  setPropertyImageCover as setBackendPropertyImageCover,
+  type PropertyImage,
+  type UploadResult,
+} from "@/lib/api/property-images";
 import { createOwner as createBackendOwner, getOwnerOptions } from "@/lib/api/owners";
 import { getIncomesSummary, getGlobalExpenses } from "@/lib/api/reports";
 import { getIncomes, createIncome } from "@/lib/api/property-incomes";
@@ -268,6 +276,22 @@ export const api = {
     const payload = mapUiPropertyToCreate(input);
     const created = unwrap(await createBackendProperty(payload));
     return mapBackendProperty(created);
+  },
+
+  async listPropertyImages(propertyId: string): Promise<PropertyImage[]> {
+    return unwrap(await fetchPropertyImages(propertyId));
+  },
+
+  async uploadPropertyImages(propertyId: string, files: File[]): Promise<UploadResult> {
+    return unwrap(await uploadBackendPropertyImages(propertyId, files));
+  },
+
+  async deletePropertyImage(propertyId: string, imageId: string): Promise<{ id: string; newCoverId: string | null }> {
+    return unwrap(await deleteBackendPropertyImage(propertyId, imageId));
+  },
+
+  async setPropertyImageCover(propertyId: string, imageId: string): Promise<PropertyImage> {
+    return unwrap(await setBackendPropertyImageCover(propertyId, imageId));
   },
 
   async getDashboard() {
