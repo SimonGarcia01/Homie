@@ -42,6 +42,14 @@ async function parseError(res: Response): Promise<string> {
   return text;
 }
 
+export async function listPublicOrganizations(): Promise<
+  { id: string; name: string; slug: string; propertyCount: number }[] | ApiError
+> {
+  const res = await fetch(buildUrl("/api/public/properties/meta/organizations"));
+  if (!res.ok) return { error: await parseError(res), status: res.status };
+  return res.json() as Promise<{ id: string; name: string; slug: string; propertyCount: number }[]>;
+}
+
 export async function listPublicProperties(params?: {
   page?: number;
   limit?: number;

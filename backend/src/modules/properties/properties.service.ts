@@ -776,6 +776,33 @@ export class PropertiesService {
         return this.mapPublicProperty(this.attachCover(property));
     }
 
+    async findPublicOrganizations() {
+        const rows = await this.repository
+            .createQueryBuilder('property')
+            .innerJoin('property.organization', 'organization')
+            .select('organization.id', 'id')
+            .addSelect('organization.name', 'name')
+            .addSelect('organization.slug', 'slug')
+            .addSelect('COUNT(property.id)', 'propertyCount')
+            .where('property.commercialStatus = :status', { status: PropertyCommercialStatus.AVAILABLE })
+            .andWhere('property.publicationStatus = :pubStatus', {
+                pubStatus: PropertyPublicationStatus.PUBLISHED,
+            })
+            .andWhere('property.isVisible = :isVisible', { isVisible: true })
+            .groupBy('organization.id')
+            .addGroupBy('organization.name')
+            .addGroupBy('organization.slug')
+            .orderBy('organization.name', 'ASC')
+            .getRawMany<{ id: string; name: string; slug: string; propertyCount: string }>();
+
+        return rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            slug: row.slug,
+            propertyCount: Number(row.propertyCount),
+        }));
+    }
+
     mapPublicProperty(property: Property & { coverImageUrl?: string | null }) {
         const cover = property.coverImageUrl ?? property.images?.find((i) => i.isCover)?.imageUrl ?? property.images?.[0]?.imageUrl ?? null;
 

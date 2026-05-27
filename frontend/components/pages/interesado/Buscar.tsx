@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { BedDouble, Bath, Building2, Home, ImageOff, MapPin, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { SeekerShell } from "@/components/interesado/SeekerShell";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { listPublicProperties, type PublicProperty } from "@/lib/api/public-properties";
+import {
+  listPublicOrganizations,
+  listPublicProperties,
+  type PublicProperty,
+} from "@/lib/api/public-properties";
+import { SpeechToTextButton } from "@/components/speech/SpeechToTextButton";
+
+type PublicOrg = { id: string; name: string; slug: string; propertyCount: number };
 
 function formatRent(p: PublicProperty) {
   const { monthlyRent, currency } = p.rentalDetail;
@@ -31,37 +39,51 @@ export default function Buscar() {
   const searchParams = useSearchParams();
   const initialQ = searchParams.get("q") ?? "";
   const [items, setItems] = useState<PublicProperty[]>([]);
+  const [organizations, setOrganizations] = useState<PublicOrg[]>([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState(initialQ);
   const [orgFilter, setOrgFilter] = useState("__all__");
   const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    listPublicOrganizations().then((res) => {
+      if (!("error" in res)) setOrganizations(res);
+    });
+  }, []);
 
   useEffect(() => {
     setLoading(true);
-    listPublicProperties({ limit: 50, q: q.trim() || undefined }).then((res) => {
+    listPublicProperties({
+      limit: 50,
+      q: q.trim() || undefined,
+      organizationId: orgFilter === "__all__" ? undefined : orgFilter,
+    }).then((res) => {
       if ("error" in res) {
         setError(res.error);
         setItems([]);
       } else {
         setError(null);
-        setItems(res.data);
+        setItems(res.data ?? []);
       }
       setLoading(false);
     });
-  }, [q]);
+  }, [q, orgFilter, reloadKey]);
 
-  const organizations = useMemo(() => {
-    const map = new Map<string, string>();
+  const orgOptions = useMemo(() => {
+    if (organizations.length > 0) return organizations;
+    const map = new Map<string, PublicOrg>();
     for (const p of items) {
-      if (p.organization) map.set(p.organization.id, p.organization.name);
+      if (!p.organization) continue;
+      map.set(p.organization.id, {
+        id: p.organization.id,
+        name: p.organization.name,
+        slug: p.organization.slug,
+        propertyCount: (map.get(p.organization.id)?.propertyCount ?? 0) + 1,
+      });
     }
-    return Array.from(map.entries()).sort((a, b) => a[1].localeCompare(b[1]));
-  }, [items]);
-
-  const filtered = useMemo(() => {
-    if (orgFilter === "__all__") return items;
-    return items.filter((p) => p.organization?.id === orgFilter);
-  }, [items, orgFilter]);
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [organizations, items]);
 
   return (
     <SeekerShell>
@@ -72,29 +94,39 @@ export default function Buscar() {
             Encuentra tu próximo hogar
           </h1>
           <p className="text-muted-foreground mt-3">
-            Propiedades publicadas por distintos brokers. Explora sin cuenta; regístrate para guardar favoritos y pedir visitas.
+            Solo aparecen propiedades <strong className="font-medium text-foreground">publicadas</strong> por
+            brokers activos en Homie. Explora sin cuenta; regístrate para favoritos y visitas.
           </p>
         </header>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">
           <div className="relative flex-1 max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               value={q}
               onChange={(e) => setQ(e.target.value)}
               placeholder="Buscar por título, comuna o dirección"
-              className="pl-9 h-11"
+              className="pl-9 pr-12 h-11"
             />
+            <div className="absolute right-1 top-1/2 -translate-y-1/2">
+              <SpeechToTextButton
+                value={q}
+                onChange={setQ}
+                className="h-9 w-9 rounded-lg"
+              />
+            </div>
           </div>
-          {organizations.length > 1 && (
+          {orgOptions.length > 0 && (
             <Select value={orgFilter} onValueChange={setOrgFilter}>
-              <SelectTrigger className="w-full sm:w-[220px] h-11">
+              <SelectTrigger className="w-full sm:w-[240px] h-11">
                 <SelectValue placeholder="Broker" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__all__">Todos los brokers</SelectItem>
-                {organizations.map(([id, name]) => (
-                  <SelectItem key={id} value={id}>{name}</SelectItem>
+                {orgOptions.map((org) => (
+                  <SelectItem key={org.id} value={org.id}>
+                    {org.name} ({org.propertyCount})
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -106,19 +138,46 @@ export default function Buscar() {
         ) : error ? (
           <div className="mt-10 rounded-2xl border border-destructive/30 bg-destructive/5 p-8 text-center">
             <p className="text-destructive">{error}</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Verifica que el backend esté corriendo en el puerto configurado.
+            </p>
+            <Button variant="soft" className="mt-4" onClick={() => setReloadKey((k) => k + 1)}>
+              Reintentar
+            </Button>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : items.length === 0 ? (
           <div className="mt-10 rounded-2xl border border-dashed border-border bg-surface p-12 text-center">
             <Home className="h-8 w-8 mx-auto text-muted-foreground" />
-            <p className="font-display text-xl mt-3">No hay propiedades disponibles</p>
-            <p className="text-muted-foreground text-sm mt-1">Prueba otros filtros o vuelve más tarde.</p>
+            <p className="font-display text-xl mt-3">No hay propiedades publicadas</p>
+            <p className="text-muted-foreground text-sm mt-1 max-w-md mx-auto">
+              {orgFilter !== "__all__"
+                ? "Este broker aún no tiene arriendos visibles en el catálogo."
+                : "Los brokers deben marcar sus propiedades como «Publicada» en el CRM para que aparezcan aquí."}
+            </p>
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <Button asChild variant="hero">
+                <Link href="/login">Soy broker — publicar propiedad</Link>
+              </Button>
+              {orgFilter !== "__all__" && (
+                <Button variant="soft" onClick={() => setOrgFilter("__all__")}>
+                  Ver todos los brokers
+                </Button>
+              )}
+            </div>
           </div>
         ) : (
           <>
-            <p className="mt-6 text-sm text-muted-foreground">{filtered.length} propiedades</p>
+            <p className="mt-6 text-sm text-muted-foreground">
+              {items.length} {items.length === 1 ? "propiedad" : "propiedades"}
+              {orgFilter !== "__all__" && orgOptions.length > 0
+                ? ` · ${orgOptions.find((o) => o.id === orgFilter)?.name ?? "Broker"}`
+                : ""}
+            </p>
             <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filtered.map((p) => {
-                const cover = p.coverImageUrl ?? p.images.find((i) => i.isCover)?.imageUrl ?? p.images[0]?.imageUrl;
+              {items.map((p) => {
+                const imgs = p.images ?? [];
+                const cover =
+                  p.coverImageUrl ?? imgs.find((i) => i.isCover)?.imageUrl ?? imgs[0]?.imageUrl;
                 return (
                   <li key={p.id}>
                     <Link
@@ -155,10 +214,12 @@ export default function Buscar() {
                           <span className="font-semibold text-primary">{formatRent(p)}</span>
                           <span className="text-xs text-muted-foreground flex items-center gap-2">
                             <span className="inline-flex items-center gap-0.5">
-                              <BedDouble className="h-3.5 w-3.5" />{p.feature.bedrooms}
+                              <BedDouble className="h-3.5 w-3.5" />
+                              {p.feature.bedrooms}
                             </span>
                             <span className="inline-flex items-center gap-0.5">
-                              <Bath className="h-3.5 w-3.5" />{p.feature.bathrooms}
+                              <Bath className="h-3.5 w-3.5" />
+                              {p.feature.bathrooms}
                             </span>
                           </span>
                         </div>

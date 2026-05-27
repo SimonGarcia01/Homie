@@ -489,8 +489,23 @@ export class SeedService {
         publicationStatus: PropertyPublicationStatus;
     }) {
         const existing = await this.propertiesRepo.findOne({ where: { code: input.code } });
-        if (existing) return existing;
-        return this.propertiesRepo.save(this.propertiesRepo.create(input));
+        if (existing) {
+            Object.assign(existing, {
+                title: input.title,
+                description: input.description,
+                propertyType: input.propertyType,
+                commercialStatus: input.commercialStatus,
+                publicationStatus: input.publicationStatus,
+                isVisible: true,
+            });
+            return this.propertiesRepo.save(existing);
+        }
+        return this.propertiesRepo.save(
+            this.propertiesRepo.create({
+                ...input,
+                isVisible: true,
+            }),
+        );
     }
 
     private async ensurePropertyLocation(propertyId: string) {

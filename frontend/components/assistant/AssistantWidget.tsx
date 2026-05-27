@@ -16,6 +16,7 @@ import {
 import { translateAuthError } from "@/lib/auth-messages";
 import { useAssistantBridge } from "@/contexts/AssistantBridgeContext";
 import { AssistantMessageBubble } from "@/components/assistant/AssistantMessageBubble";
+import { SpeechToTextButton } from "@/components/speech/SpeechToTextButton";
 
 const SUGGESTIONS = [
   "¿Cuántas casas disponibles tengo?",
@@ -211,7 +212,7 @@ export function AssistantWidget() {
 
           <div className="border-t border-border p-4">
             <form
-              className="flex gap-2"
+              className="flex gap-2 items-end"
               onSubmit={(e) => {
                 e.preventDefault();
                 void sendMessage(input);
@@ -221,7 +222,7 @@ export function AssistantWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Pregunta sobre tus propiedades…"
-                className="min-h-[44px] max-h-28 resize-none rounded-xl"
+                className="min-h-[44px] max-h-28 resize-none rounded-xl flex-1"
                 rows={1}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -231,6 +232,7 @@ export function AssistantWidget() {
                 }}
                 disabled={loading}
               />
+              <SpeechToTextButton value={input} onChange={setInput} disabled={loading} />
               <Button type="submit" variant="hero" size="icon" className="h-11 w-11 shrink-0 rounded-xl" disabled={loading || !input.trim()}>
                 <Send className="h-4 w-4" />
               </Button>

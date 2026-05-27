@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { createProspectInquiry } from "@/lib/api/prospect-portal";
+import { SpeechToTextButton } from "@/components/speech/SpeechToTextButton";
 import { toast } from "@/hooks/use-toast";
 
 export function InquiryDialog({
@@ -102,7 +103,16 @@ export function InquiryDialog({
           )}
 
           <div className="space-y-2">
-            <Label htmlFor="inquiry-message">Mensaje (opcional)</Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="inquiry-message">Mensaje (opcional)</Label>
+              <SpeechToTextButton
+                value={message}
+                onChange={setMessage}
+                disabled={submitting}
+                size="sm"
+                className="h-8 rounded-lg"
+              />
+            </div>
             <Textarea
               id="inquiry-message"
               value={message}
@@ -114,6 +124,7 @@ export function InquiryDialog({
               }
               rows={3}
               className="resize-none"
+              disabled={submitting}
             />
           </div>
 

@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/inbox";
 import { api } from "@/lib/mock/api";
 import { buildLeadSummaryPrompt, useAssistantBridge } from "@/contexts/AssistantBridgeContext";
+import { SpeechToTextButton } from "@/components/speech/SpeechToTextButton";
 
 export type LeadConversationTarget = {
   leadId: string;
@@ -186,13 +187,22 @@ export function LeadConversationPanel({
             </select>
           </label>
         </div>
-        <Textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
-          placeholder="Ej: Llamó por WhatsApp, quiere visitar el sábado en la mañana…"
-          rows={3}
-          className="resize-none"
-        />
+        <div className="flex gap-2 items-start">
+          <Textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Ej: Llamó por WhatsApp, quiere visitar el sábado en la mañana…"
+            rows={3}
+            className="resize-none flex-1"
+            disabled={sending}
+          />
+          <SpeechToTextButton
+            value={body}
+            onChange={setBody}
+            disabled={sending}
+            className="mt-1"
+          />
+        </div>
         <Button type="submit" variant="hero" disabled={sending || !body.trim()} className="w-full">
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
           Registrar interacción

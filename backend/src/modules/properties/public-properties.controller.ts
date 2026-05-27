@@ -19,6 +19,12 @@ export class PublicPropertiesController {
         return this.service.findPublicProperties(filter);
     }
 
+    @Get('meta/organizations')
+    @ApiOperation({ summary: 'Brokers con propiedades publicadas en el catálogo' })
+    findOrganizations() {
+        return this.service.findPublicOrganizations();
+    }
+
     @Get(':id')
     @ApiOperation({ summary: 'Obtener detalle público de una propiedad' })
     @ApiResponse({ status: 200, description: 'Detalle de la propiedad' })

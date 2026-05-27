@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,15 +64,18 @@ export function PropertyDetailDialog({
     api.listOwners().then((os) => setOwner(os.find((o) => o.id === property.ownerId) ?? null));
   }, [property?.id]);
 
+  const handleImagesChange = useCallback(
+    (urls: string[]) => {
+      setGalleryUrls(urls);
+      setIdx(0);
+      if (property?.id) onImagesUpdated?.(property.id, urls);
+    },
+    [property?.id, onImagesUpdated],
+  );
+
   if (!property) return null;
   const images = galleryUrls;
   const propertyId = property.id;
-
-  function handleImagesChange(urls: string[]) {
-    setGalleryUrls(urls);
-    setIdx(0);
-    onImagesUpdated?.(propertyId, urls);
-  }
 
   const cover = images[idx];
 
