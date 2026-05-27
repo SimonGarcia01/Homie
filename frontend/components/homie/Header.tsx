@@ -7,10 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 const NAV_LINKS = [
-  { href: "#producto", label: "Producto" },
-  { href: "#cartera", label: "Tu cartera" },
-  { href: "#operacion", label: "Operación" },
-  { href: "#cuidado", label: "Cuidado documental" },
+  { href: "#para-arrendatarios", label: "Busco arriendo" },
+  { href: "#para-brokers", label: "Soy broker" },
+  { href: "#producto", label: "Features CRM" },
+  { href: "#operacion", label: "Cómo funciona" },
 ];
 
 export const Header = () => {
@@ -26,7 +26,7 @@ export const Header = () => {
           <span className="font-display text-2xl font-semibold tracking-tight text-foreground">Homie</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-8 text-sm text-muted-foreground">
+        <nav className="hidden lg:flex items-center gap-7 text-sm text-muted-foreground">
           {NAV_LINKS.map((link) => (
             <a key={link.href} href={link.href} className="hover:text-foreground transition-colors">
               {link.label}
@@ -36,15 +36,18 @@ export const Header = () => {
 
         <div className="flex items-center gap-2">
           <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-            <Link href="/login">Iniciar sesión</Link>
+            <Link href="/buscar">Buscar arriendo</Link>
+          </Button>
+          <Button asChild variant="ghost" size="sm" className="hidden md:inline-flex">
+            <Link href="/login">Broker</Link>
           </Button>
           <Button asChild variant="default" size="sm" className="rounded-full hidden sm:inline-flex">
-            <Link href="/register">Crear cuenta</Link>
+            <Link href="/register">Registrar broker</Link>
           </Button>
 
           <Sheet open={open} onOpenChange={setOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Abrir menú">
+              <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Abrir menú">
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
@@ -63,13 +66,16 @@ export const Header = () => {
                     {link.label}
                   </a>
                 ))}
-                <Link href="/catalogo" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
-                  Catálogo
-                </Link>
                 <hr className="border-border my-2" />
-                <Link href="/login" onClick={() => setOpen(false)}>Iniciar sesión</Link>
+                <Link href="/buscar" onClick={() => setOpen(false)} className="font-medium text-accent">
+                  Buscar arriendo
+                </Link>
+                <Link href="/interesado/login" onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground">
+                  Ingresar (arrendatario)
+                </Link>
+                <Link href="/login" onClick={() => setOpen(false)}>Ingresar (broker)</Link>
                 <Link href="/register" onClick={() => setOpen(false)} className="font-medium text-primary">
-                  Crear cuenta
+                  Registrar broker
                 </Link>
               </nav>
             </SheetContent>

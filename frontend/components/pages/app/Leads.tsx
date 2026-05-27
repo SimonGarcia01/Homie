@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Sprout, Search, Mail, Phone, Home as HomeIcon, Plus, ArrowRight, Flame, Snowflake } from "lucide-react";
+import { Sprout, Search, Mail, Phone, Home as HomeIcon, Plus, ArrowRight, Flame, Snowflake, MessageSquare } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/mock/api";
 import type { Lead, Property } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
+import { LeadConversationDialog } from "@/components/conversations/LeadConversationDialog";
+import type { LeadConversationTarget } from "@/components/conversations/LeadConversationPanel";
+import { NewLeadDialog } from "@/components/leads/NewLeadDialog";
 
 type LeadRow = Lead & { property?: Property };
 
@@ -39,9 +42,15 @@ export default function Leads() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState("");
   const [stage, setStage] = useState<"todos" | Lead["stage"]>("todos");
+  const [conversationTarget, setConversationTarget] = useState<LeadConversationTarget | null>(null);
+  const [newLeadOpen, setNewLeadOpen] = useState(false);
+
+  const refreshLeads = () => {
+    return api.listLeads().then((l) => setItems(l));
+  };
 
   useEffect(() => {
-    api.listLeads().then((l) => { setItems(l); setLoading(false); });
+    refreshLeads().finally(() => setLoading(false));
   }, []);
 
   const filtered = useMemo(() => items.filter((l) => {
@@ -64,7 +73,9 @@ export default function Leads() {
           <h1 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">Leads</h1>
           <p className="text-muted-foreground mt-1">Cada contacto es una semilla por cultivar.</p>
         </div>
-        <Button variant="hero" size="lg"><Plus className="h-4 w-4" /> Nuevo lead</Button>
+        <Button variant="hero" size="lg" onClick={() => setNewLeadOpen(true)}>
+          <Plus className="h-4 w-4" /> Nuevo lead
+        </Button>
       </header>
 
       <div className="mt-6 flex flex-col md:flex-row gap-3">
@@ -129,7 +140,19 @@ export default function Leads() {
                   )}
                 </div>
                 <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-                  <Button variant="ghost" size="sm">Contactar</Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setConversationTarget({
+                        leadId: l.id,
+                        contactName: l.name,
+                        propertyTitle: l.property?.title,
+                      })
+                    }
+                  >
+                    <MessageSquare className="h-3.5 w-3.5" /> Conversación
+                  </Button>
                   <Link href="/app/oportunidades" className="text-xs text-primary hover:underline inline-flex items-center gap-1">
                     Ver pipeline <ArrowRight className="h-3 w-3" />
                   </Link>
@@ -139,6 +162,18 @@ export default function Leads() {
           })}
         </ul>
       )}
+
+      <LeadConversationDialog
+        target={conversationTarget}
+        open={!!conversationTarget}
+        onOpenChange={(v) => !v && setConversationTarget(null)}
+      />
+
+      <NewLeadDialog
+        open={newLeadOpen}
+        onOpenChange={setNewLeadOpen}
+        onCreated={() => void refreshLeads()}
+      />
     </AppShell>
   );
 }

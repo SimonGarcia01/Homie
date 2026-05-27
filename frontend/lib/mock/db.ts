@@ -53,6 +53,18 @@ export type Lead = {
   createdAt: string;
 };
 
+export type Opportunity = {
+  id: string;
+  leadId: string;
+  name: string;
+  email: string;
+  phone: string;
+  propertyId: string;
+  stage: Lead["stage"];
+  createdAt: string;
+  property?: Property;
+};
+
 export type Visit = {
   id: string;
   propertyId: string;

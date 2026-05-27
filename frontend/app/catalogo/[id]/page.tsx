@@ -1,5 +1,10 @@
-import CatalogDetail from "@/components/pages/CatalogDetail";
+import { redirect } from "next/navigation";
 
-export default function CatalogoDetailPage() {
-  return <CatalogDetail />;
+export default async function CatalogoDetailRedirect({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  redirect(`/buscar/${id}`);
 }

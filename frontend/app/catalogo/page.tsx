@@ -1,5 +1,5 @@
-import Catalog from "@/components/pages/Catalog";
+import { redirect } from "next/navigation";
 
-export default function CatalogoPage() {
-  return <Catalog />;
+export default function CatalogoRedirect() {
+  redirect("/buscar");
 }

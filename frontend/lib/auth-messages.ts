@@ -78,7 +78,7 @@ export function validateRegisterForm(input: {
   if (!input.firstName.trim()) errors.firstName = "Ingresa tu nombre.";
   if (!input.lastName.trim()) errors.lastName = "Ingresa tu apellido.";
   if (!input.organizationName.trim()) {
-    errors.organizationName = "Indica el nombre de tu corretaje o equipo.";
+    errors.organizationName = "Indica el nombre de tu broker o equipo.";
   } else if (input.organizationName.trim().length < 2) {
     errors.organizationName = "El nombre debe tener al menos 2 caracteres.";
   }

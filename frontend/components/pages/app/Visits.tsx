@@ -10,6 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { api } from "@/lib/mock/api";
 import type { Lead, Property, Visit } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
+import { ScheduleVisitDialog } from "@/components/visits/ScheduleVisitDialog";
 
 type VisitRow = Visit & { property?: Property; lead?: Lead };
 
@@ -31,9 +32,12 @@ export default function Visits() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Date | undefined>(new Date());
   const [openId, setOpenId] = useState<string | null>(null);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+
+  const refreshVisits = () => api.listVisits().then(setItems);
 
   useEffect(() => {
-    api.listVisits().then((v) => { setItems(v); setLoading(false); });
+    refreshVisits().finally(() => setLoading(false));
   }, []);
 
   const datesWithVisits = useMemo(() => items.map((v) => new Date(v.date)), [items]);
@@ -63,7 +67,9 @@ export default function Visits() {
           <StatPill label="Próximas" value={upcoming} tone="primary" />
           <StatPill label="Realizadas" value={done} tone="secondary" />
           <StatPill label="Canceladas" value={cancel} tone="muted" />
-          <Button variant="hero" size="lg"><Plus className="h-4 w-4" /> Agendar visita</Button>
+          <Button variant="hero" size="lg" onClick={() => setScheduleOpen(true)}>
+            <Plus className="h-4 w-4" /> Agendar visita
+          </Button>
         </div>
       </header>
 
@@ -160,11 +166,20 @@ export default function Visits() {
                             </div>
                           )}
                           <div className="md:col-span-2 flex flex-wrap gap-2 pt-1">
-                            <Button size="sm" variant="hero" onClick={async () => { await api.updateVisit(v.id, { status: "realizada" }); setItems(await api.listVisits()); }}>
+                            <Button size="sm" variant="hero" onClick={async () => { await api.updateVisit(v.id, { status: "realizada" }); await refreshVisits(); }}>
                               <CheckCircle2 className="h-4 w-4" /> Marcar como realizada
                             </Button>
-                            <Button size="sm" variant="soft">Reprogramar</Button>
-                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={async () => { await api.updateVisit(v.id, { status: "cancelada" }); setItems(await api.listVisits()); }}>
+                            <Button
+                              size="sm"
+                              variant="soft"
+                              onClick={() => {
+                                setSelected(new Date(v.date));
+                                setScheduleOpen(true);
+                              }}
+                            >
+                              Reprogramar
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={async () => { await api.updateVisit(v.id, { status: "cancelada" }); await refreshVisits(); }}>
                               <XCircle className="h-4 w-4" /> Cancelar
                             </Button>
                           </div>
@@ -178,6 +193,13 @@ export default function Visits() {
           )}
         </section>
       </div>
+
+      <ScheduleVisitDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        initialDate={selected}
+        onCreated={() => void refreshVisits()}
+      />
     </AppShell>
   );
 }

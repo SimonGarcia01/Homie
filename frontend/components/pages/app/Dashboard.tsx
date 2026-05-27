@@ -26,6 +26,21 @@ type Visits = Awaited<ReturnType<typeof api.getUpcomingVisits>>;
 const fmtCLP = (n: number) =>
   new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(n);
 
+function formatActivityDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1) return "Hace un momento";
+  if (diffMin < 60) return `Hace ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `Hace ${diffH} h`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD < 7) return `Hace ${diffD} d`;
+  return new Intl.DateTimeFormat("es-CL", { day: "numeric", month: "short" }).format(date);
+}
+
 const ACTIVITY_ICON = {
   propiedad: Home, lead: Sprout, visita: Calendar, documento: FileText, contrato: FileText, oportunidad: Leaf,
 } as const;
@@ -36,11 +51,25 @@ export default function Dashboard() {
   const [activity, setActivity] = useState<Activity>([]);
   const [upcoming, setUpcoming] = useState<Visits>([]);
   const [error, setError] = useState<string | null>(null);
+  const [loadingDash, setLoadingDash] = useState(true);
+  const [loadingActivity, setLoadingActivity] = useState(true);
+  const [loadingVisits, setLoadingVisits] = useState(true);
 
   useEffect(() => {
-    Promise.all([api.getDashboard(), api.getRecentActivity(), api.getUpcomingVisits()])
-      .then(([d, a, v]) => { setDash(d); setActivity(a); setUpcoming(v); })
-      .catch(() => setError("No pudimos cargar tu jardín. Intenta nuevamente en unos segundos."));
+    void api.getDashboard()
+      .then(setDash)
+      .catch(() => setError("No pudimos cargar tu jardín. Intenta nuevamente en unos segundos."))
+      .finally(() => setLoadingDash(false));
+
+    void api.getRecentActivity()
+      .then(setActivity)
+      .catch(() => setActivity([]))
+      .finally(() => setLoadingActivity(false));
+
+    void api.getUpcomingVisits()
+      .then(setUpcoming)
+      .catch(() => setUpcoming([]))
+      .finally(() => setLoadingVisits(false));
   }, []);
 
   const greeting = (() => {
@@ -50,7 +79,9 @@ export default function Dashboard() {
     return "Buenas noches";
   })();
 
-  const heroMessage = dash
+  const heroMessage = loadingDash
+    ? "Preparando tu jardín…"
+    : dash
     ? dash.alerts.length === 0
       ? "Tu cartera está floreciendo. No hay pendientes críticos."
       : `Tu cartera está en orden. Hay ${dash.alerts.length} jardineras que piden atención.`
@@ -127,7 +158,7 @@ export default function Dashboard() {
 
       {/* Visitas, documentos, alertas */}
       <section className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <UpcomingVisitsCard upcoming={upcoming} loading={!dash} />
+        <UpcomingVisitsCard upcoming={upcoming} loading={loadingVisits} />
         <DocumentsCareCard dash={dash} />
         <SoftAlertsPanel dash={dash} />
       </section>
@@ -140,7 +171,7 @@ export default function Dashboard() {
       )}
 
       <section className="mt-6">
-        <ActivityVineTimeline activity={activity} loading={!dash} />
+        <ActivityVineTimeline activity={activity} loading={loadingActivity} />
       </section>
     </AppShell>
   );
@@ -469,7 +500,7 @@ function ActivityVineTimeline({ activity, loading }: { activity: Activity; loadi
         <p className="text-sm text-muted-foreground">Aún no hay actividad. Lo que cuides aquí va a crecer.</p>
       ) : (
         <ol className="relative pl-5 space-y-4 before:absolute before:left-1.5 before:top-1 before:bottom-1 before:w-px before:bg-gradient-to-b before:from-secondary/40 before:via-primary/20 before:to-transparent">
-          {activity.slice(0, 5).map((a) => {
+          {activity.map((a) => {
             const Icon = ACTIVITY_ICON[a.type] ?? Sprout;
             return (
               <li key={a.id} className="relative">
@@ -478,9 +509,11 @@ function ActivityVineTimeline({ activity, loading }: { activity: Activity; loadi
                   <Icon className="h-3.5 w-3.5 text-primary/70 mt-0.5" />
                   <div className="min-w-0">
                     <p className="text-sm text-foreground">
-                      <strong className="font-medium">{a.user?.name}</strong> · {a.message}
+                      <strong className="font-medium">{a.userName}</strong> · {a.message}
                     </p>
-                    <p className="text-xs text-muted-foreground">{a.entityLabel}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {[a.entityLabel, formatActivityDate(a.date)].filter(Boolean).join(" · ")}
+                    </p>
                   </div>
                 </div>
               </li>

@@ -151,17 +151,22 @@ export class PropertyTools {
 }
 
 import { PropertyWriteTools } from './property-write.tools';
+import { CrmTools } from './crm.tools';
 
 @Injectable()
 export class ToolExecutor {
     constructor(
         private readonly propertyTools: PropertyTools,
         private readonly writeTools: PropertyWriteTools,
+        private readonly crmTools: CrmTools,
     ) {}
 
     execute(name: AssistantToolName, args: Record<string, unknown>, ctx: ToolContext) {
         if (this.writeTools.canHandle(name)) {
             return this.writeTools.execute(name, args, ctx);
+        }
+        if (this.crmTools.canHandle(name)) {
+            return this.crmTools.execute(name, args, ctx);
         }
         return this.propertyTools.execute(name, args, ctx);
     }

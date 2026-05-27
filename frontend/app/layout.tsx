@@ -16,9 +16,9 @@ const bodyFont = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Homie — Un hogar para gestionar tus arriendos",
+  title: "Homie — Busca arriendo o gestiona tu cartera",
   description:
-    "Homie reúne propiedades, propietarios, interesados, visitas, documentos y finanzas en un espacio cálido y claro para brokers.",
+    "Homie conecta arrendatarios con propiedades de distintos brokers y ofrece un CRM cálido para leads, visitas, documentos y finanzas.",
 };
 
 export default function RootLayout({

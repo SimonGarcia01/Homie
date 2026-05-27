@@ -1,12 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { Brackets, In, Repository } from 'typeorm';
 
 import { ActivityType, LeadStatus } from '../../common/enums';
 import { ActivitiesService } from '../activities/activities.service';
 import { ContactsService } from '../contacts/contacts.service';
 import { OpportunitiesService } from '../opportunities/opportunities.service';
 import { Opportunity } from '../opportunities/entities/opportunity.entity';
+import { OpportunityProperty } from '../opportunities/entities/opportunity-property.entity';
 
 import { ConvertLeadDto, CreateLeadDto, UpdateLeadDto } from './dto/create-lead.dto';
 import { Lead } from './entities/lead.entity';
@@ -17,6 +18,7 @@ export type LeadView = {
     email: string;
     phone: string;
     propertyId?: string;
+    propertyTitle?: string;
     stage: string;
     createdAt: string;
 };
@@ -28,6 +30,8 @@ export class LeadsService {
         private readonly repository: Repository<Lead>,
         @InjectRepository(Opportunity)
         private readonly opportunityRepo: Repository<Opportunity>,
+        @InjectRepository(OpportunityProperty)
+        private readonly opportunityPropertyRepo: Repository<OpportunityProperty>,
         private readonly contactsService: ContactsService,
         private readonly opportunitiesService: OpportunitiesService,
         private readonly activitiesService: ActivitiesService,
@@ -36,6 +40,68 @@ export class LeadsService {
     private statusToStage(status: LeadStatus): string {
         if (status === LeadStatus.CONTACTED) return 'contactado';
         return 'nuevo';
+    }
+
+    private async resolvePropertyForLead(leadId: string): Promise<{ propertyId?: string; propertyTitle?: string }> {
+        const link = await this.opportunityPropertyRepo
+            .createQueryBuilder('op')
+            .innerJoinAndSelect('op.property', 'property')
+            .innerJoin('op.opportunity', 'opp', 'opp.leadId = :leadId', { leadId })
+            .orderBy('op.id', 'DESC')
+            .getOne();
+
+        if (!link?.property) return {};
+        return {
+            propertyId: link.propertyId,
+            propertyTitle: link.property.title,
+        };
+    }
+
+    private async toViewAsync(lead: Lead): Promise<LeadView> {
+        const contact = lead.contact!;
+        const property = await this.resolvePropertyForLead(lead.id);
+        return {
+            id: lead.id,
+            name: `${contact.firstName} ${contact.lastName}`.trim(),
+            email: contact.email ?? '',
+            phone: contact.phone ?? '',
+            propertyId: property.propertyId,
+            propertyTitle: property.propertyTitle,
+            stage: this.statusToStage(lead.status),
+            createdAt: lead.createdAt.toISOString(),
+        };
+    }
+
+    async findOne(organizationId: string, id: string): Promise<LeadView> {
+        const lead = await this.repository.findOne({
+            where: { id, organizationId },
+            relations: { contact: true },
+        });
+        if (!lead) throw new NotFoundException('Lead not found');
+        return this.toViewAsync(lead);
+    }
+
+    async search(organizationId: string, query: string, limit = 10): Promise<LeadView[]> {
+        const q = query.trim();
+        if (!q) return [];
+
+        const rows = await this.repository
+            .createQueryBuilder('lead')
+            .innerJoinAndSelect('lead.contact', 'contact')
+            .where('lead.organizationId = :organizationId', { organizationId })
+            .andWhere(
+                new Brackets((qb) => {
+                    qb.where('contact.firstName ILIKE :q', { q: `%${q}%` })
+                        .orWhere('contact.lastName ILIKE :q', { q: `%${q}%` })
+                        .orWhere('contact.email ILIKE :q', { q: `%${q}%` })
+                        .orWhere('contact.phone ILIKE :q', { q: `%${q}%` });
+                }),
+            )
+            .orderBy('lead.createdAt', 'DESC')
+            .take(limit)
+            .getMany();
+
+        return Promise.all(rows.map((lead) => this.toViewAsync(lead)));
     }
 
     private toView(lead: Lead): LeadView {
@@ -109,15 +175,29 @@ export class LeadsService {
         return view;
     }
 
-    async update(organizationId: string, id: string, dto: UpdateLeadDto) {
+    async update(organizationId: string, userId: string, id: string, dto: UpdateLeadDto) {
         const lead = await this.repository.findOne({
             where: { id, organizationId },
             relations: { contact: true },
         });
         if (!lead) throw new NotFoundException('Lead not found');
+
+        const becameContacted =
+            dto.status === LeadStatus.CONTACTED && lead.status !== LeadStatus.CONTACTED;
+
         if (dto.status !== undefined) lead.status = dto.status;
         if (dto.temperature !== undefined) lead.temperature = dto.temperature;
         await this.repository.save(lead);
+
+        if (becameContacted) {
+            await this.activitiesService.create(organizationId, userId, {
+                type: ActivityType.CALL,
+                content: 'Lead contactado',
+                leadId: id,
+                contactId: lead.contactId,
+            });
+        }
+
         return this.toView(lead);
     }
 

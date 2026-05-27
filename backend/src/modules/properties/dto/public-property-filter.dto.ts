@@ -34,6 +34,16 @@ export class PublicPropertyFilterDto {
     @IsString()
     country?: string;
 
+    @ApiPropertyOptional({ description: 'Búsqueda por título, código o dirección' })
+    @IsOptional()
+    @IsString()
+    q?: string;
+
+    @ApiPropertyOptional({ description: 'Filtrar por corretaje (organization id)' })
+    @IsOptional()
+    @IsString()
+    organizationId?: string;
+
     @ApiPropertyOptional({ description: 'Número de página', example: 1, default: 1 })
     @IsOptional()
     @Type(() => Number)

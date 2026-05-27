@@ -175,6 +175,56 @@ export const ASSISTANT_TOOLS: ChatCompletionTool[] = [
             },
         },
     },
+    {
+        type: 'function',
+        function: {
+            name: 'buscar_lead',
+            description: 'Busca leads/interesados por nombre, email o teléfono.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    busqueda: { type: 'string', description: 'Nombre, email o teléfono del lead' },
+                    limite: { type: 'number', description: 'Máximo de resultados (1-20)' },
+                },
+                required: ['busqueda'],
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'obtener_hilo_lead',
+            description:
+                'Obtiene el hilo de conversación manual (WhatsApp, llamadas, emails registrados) de un lead, con contexto del contacto y propiedad.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    leadId: { type: 'string', description: 'UUID del lead' },
+                    nombreLead: { type: 'string', description: 'Nombre del lead si no se conoce el UUID' },
+                    limite: { type: 'number', description: 'Cantidad máxima de mensajes (1-100)' },
+                },
+                additionalProperties: false,
+            },
+        },
+    },
+    {
+        type: 'function',
+        function: {
+            name: 'resumir_conversacion_lead',
+            description:
+                'Obtiene el hilo completo de un lead para resumirlo. Usar cuando el usuario pida resumen del contacto, conversación o seguimiento con un interesado.',
+            parameters: {
+                type: 'object',
+                properties: {
+                    leadId: { type: 'string', description: 'UUID del lead' },
+                    nombreLead: { type: 'string', description: 'Nombre del lead, ej. Juan' },
+                    limite: { type: 'number', description: 'Cantidad máxima de mensajes a considerar' },
+                },
+                additionalProperties: false,
+            },
+        },
+    },
 ];
 
 export type AssistantToolName =
@@ -186,7 +236,10 @@ export type AssistantToolName =
     | 'buscar_propietario'
     | 'crear_propietario'
     | 'preparar_propiedad'
-    | 'confirmar_crear_propiedad';
+    | 'confirmar_crear_propiedad'
+    | 'buscar_lead'
+    | 'obtener_hilo_lead'
+    | 'resumir_conversacion_lead';
 
 export type AssistantPropertyPreview = {
     titulo: string;

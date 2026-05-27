@@ -259,7 +259,7 @@ export class PropertyWriteTools {
             };
         }
 
-        const created = await this.propertiesService.create(draft.dto, ctx.organizationId);
+        const created = await this.propertiesService.create(draft.dto, ctx.organizationId, ctx.userId);
         this.draftService.clear(ctx.organizationId, ctx.userId, ctx.sessionId);
 
         return {

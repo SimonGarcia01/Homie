@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageSquare, RotateCcw, Send, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,13 @@ import {
   type AssistantPropertyPreview,
 } from "@/lib/api/assistant";
 import { translateAuthError } from "@/lib/auth-messages";
+import { useAssistantBridge } from "@/contexts/AssistantBridgeContext";
 import { AssistantMessageBubble } from "@/components/assistant/AssistantMessageBubble";
 
 const SUGGESTIONS = [
   "¿Cuántas casas disponibles tengo?",
   "Resumen del portafolio",
+  "Resume el hilo con el último lead contactado",
   "Agrega un depto en Providencia, 850 mil, de María González",
 ];
 
@@ -27,6 +29,7 @@ function isApiError(value: unknown): value is { error: string; status?: number }
 }
 
 export function AssistantWidget() {
+  const { isOpenRequest, consumePrompt, consumeOpenRequest } = useAssistantBridge();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
   const [sessionId, setSessionId] = useState(() => getAssistantSessionId());
@@ -93,6 +96,18 @@ export function AssistantWidget() {
     },
     [loading, scrollToBottom, sessionId],
   );
+
+  useEffect(() => {
+    if (!isOpenRequest) return;
+    setOpen(true);
+    consumeOpenRequest();
+    const prompt = consumePrompt();
+    if (prompt) {
+      window.setTimeout(() => {
+        void sendMessage(prompt);
+      }, 150);
+    }
+  }, [isOpenRequest, consumeOpenRequest, consumePrompt, sendMessage]);
 
   return (
     <>

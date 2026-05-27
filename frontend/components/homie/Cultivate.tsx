@@ -12,12 +12,12 @@ export const Cultivate = () => (
     <div aria-hidden className="absolute inset-0 bg-grain opacity-30 mix-blend-multiply pointer-events-none" />
     <div className="container relative">
       <div className="max-w-2xl">
-        <span className="text-xs uppercase tracking-[0.18em] text-accent font-medium">El ciclo del arriendo</span>
+        <span className="text-xs uppercase tracking-[0.18em] text-primary font-medium">Para brokers</span>
         <h2 className="mt-3 font-display text-4xl md:text-5xl font-medium leading-tight text-foreground">
-          Cultiva relaciones, cosecha contratos.
+          Del lead del portal al contrato firmado.
         </h2>
         <p className="mt-4 text-lg text-muted-foreground">
-          Homie acompaña tu operación como un jardinero acompaña sus plantas: con orden, ritmo y atención.
+          Homie acompaña tu operación como un jardinero acompaña sus plantas: captura interés, agenda visitas, ordena documentos y cierra con calma.
         </p>
       </div>
 

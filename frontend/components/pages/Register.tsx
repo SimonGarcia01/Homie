@@ -139,7 +139,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="organizationName">Nombre del corretaje o equipo</Label>
+              <Label htmlFor="organizationName">Nombre de tu broker o equipo</Label>
               <Input
                 id="organizationName"
                 value={organizationName}

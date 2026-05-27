@@ -52,6 +52,17 @@ export class UsersService {
         await this.usersRepository.update(id, { lastLoginAt: new Date() });
     }
 
+    async findDefaultOwnerForOrganization(organizationId: string) {
+        const user = await this.usersRepository.findOne({
+            where: { organizationId, isActive: true },
+            order: { createdAt: 'ASC' },
+        });
+        if (!user) {
+            throw new NotFoundException('No agent available for this organization');
+        }
+        return user;
+    }
+
     async update(id: string, updateUserDto: UpdateUserDto) {
         const user = await this.findOne(id);
         const { password, ...rest } = updateUserDto;

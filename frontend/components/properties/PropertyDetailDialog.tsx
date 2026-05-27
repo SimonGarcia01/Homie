@@ -11,6 +11,7 @@ import type { Property, Owner } from "@/lib/mock/db";
 import { api, can } from "@/lib/mock/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { PropertyImageManager } from "@/components/properties/PropertyImageManager";
+import { ScheduleVisitDialog } from "@/components/visits/ScheduleVisitDialog";
 
 const STATUS_TONE: Record<Property["status"], string> = {
   disponible: "bg-primary/10 text-primary border-primary/20",
@@ -49,6 +50,7 @@ export function PropertyDetailDialog({
   const [idx, setIdx] = useState(0);
   const [owner, setOwner] = useState<Owner | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const canManagePhotos = can(user?.role, "properties.edit");
 
@@ -75,6 +77,7 @@ export function PropertyDetailDialog({
   const cover = images[idx];
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-5xl p-0 overflow-hidden border-border bg-surface gap-0 max-h-[92vh] overflow-y-auto">
         <DialogTitle className="sr-only">{property.title}</DialogTitle>
@@ -208,7 +211,9 @@ export function PropertyDetailDialog({
               <p className="text-xs text-muted-foreground mt-1">Gastos comunes no incluidos</p>
 
               <div className="mt-5 grid gap-2">
-                <Button variant="hero" size="lg"><Calendar className="h-4 w-4" /> Agendar visita</Button>
+                <Button variant="hero" size="lg" onClick={() => setScheduleOpen(true)}>
+                  <Calendar className="h-4 w-4" /> Agendar visita
+                </Button>
                 <Button variant="soft" size="lg"><MessageSquare className="h-4 w-4" /> Contactar interesado</Button>
                 <Button variant="ghost" size="lg"><Heart className="h-4 w-4" /> Marcar como favorita</Button>
               </div>
@@ -228,6 +233,13 @@ export function PropertyDetailDialog({
         </div>
       </DialogContent>
     </Dialog>
+
+    <ScheduleVisitDialog
+      open={scheduleOpen}
+      onOpenChange={setScheduleOpen}
+      initialPropertyId={property.id}
+    />
+    </>
   );
 }
 

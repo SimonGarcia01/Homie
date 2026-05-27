@@ -23,8 +23,15 @@ SEGUIMIENTO Y MEMORIA:
 - Cuando contar_propiedades devuelva propiedades en el campo "propiedades", menciona título y datos clave en tu respuesta.
 - Prioriza ids del contexto reciente para obtener_propiedad cuando el usuario se refiera a una propiedad ya listada.`;
 
+const CRM_CONVERSATION_RULES = `
+CONVERSACIONES CON LEADS:
+- Para resumir el hilo con un interesado, buscar contacto o ver mensajes registrados (WhatsApp, llamadas, emails), usa buscar_lead y/o resumir_conversacion_lead u obtener_hilo_lead.
+- NUNCA inventes mensajes. Si totalMensajes es 0, dilo claramente y sugiere registrar la interacción en el inbox.
+- Al resumir, incluye: interés del lead, propiedad asociada, objeciones, último contacto y próximo paso sugerido.
+- Si hay varios leads con el mismo nombre, pide aclaración mostrando los candidatos.`;
+
 export function buildSystemPrompt(recentContextBlock?: string | null, verifiedPortfolioBlock?: string | null): string {
-    const parts = [SYSTEM_PROMPT_ES, CREATION_RULES, DATA_QUERY_RULES, FOLLOW_UP_RULES];
+    const parts = [SYSTEM_PROMPT_ES, CREATION_RULES, DATA_QUERY_RULES, FOLLOW_UP_RULES, CRM_CONVERSATION_RULES];
     if (recentContextBlock?.trim()) {
         parts.push(recentContextBlock.trim());
     }

@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Sprout, Leaf, TreeDeciduous, Flower2, CheckCircle2, XCircle, Mail, Phone, ArrowRight } from "lucide-react";
+import { Sprout, Leaf, TreeDeciduous, Flower2, CheckCircle2, XCircle, Mail, Phone, ArrowRight, MessageSquare } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/mock/api";
 import type { Lead, Property } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
+import { LeadConversationDialog } from "@/components/conversations/LeadConversationDialog";
+import type { LeadConversationTarget } from "@/components/conversations/LeadConversationPanel";
 
-type LeadRow = Lead & { property?: Property };
+type LeadRow = Lead & { property?: Property; leadId?: string };
 
 const STAGES: { key: Lead["stage"]; label: string; description: string; icon: typeof Sprout; tone: string }[] = [
   { key: "nuevo", label: "Semilla", description: "Recién llegados", icon: Sprout, tone: "primary" },
@@ -23,6 +26,7 @@ function initials(n: string) { return n.split(" ").map((p) => p[0]).slice(0, 2).
 export default function Opportunities() {
   const [items, setItems] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [conversationTarget, setConversationTarget] = useState<LeadConversationTarget | null>(null);
 
   useEffect(() => {
     api.listOpportunities().then((l) => { setItems(l); setLoading(false); });
@@ -95,6 +99,23 @@ export default function Opportunities() {
                           <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{l.email.split("@")[0]}</span>
                           <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{l.phone.slice(-7)}</span>
                         </div>
+                        {l.leadId && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2 h-7 px-2 text-[11px]"
+                            onClick={() =>
+                              setConversationTarget({
+                                leadId: l.leadId!,
+                                contactName: l.name,
+                                propertyTitle: l.property?.title,
+                                opportunityId: l.id,
+                              })
+                            }
+                          >
+                            <MessageSquare className="h-3 w-3" /> Conversación
+                          </Button>
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -126,6 +147,12 @@ export default function Opportunities() {
           </ul>
         </section>
       )}
+
+      <LeadConversationDialog
+        target={conversationTarget}
+        open={!!conversationTarget}
+        onOpenChange={(v) => !v && setConversationTarget(null)}
+      />
     </AppShell>
   );
 }

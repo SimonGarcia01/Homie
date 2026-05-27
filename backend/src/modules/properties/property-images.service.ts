@@ -2,8 +2,11 @@ import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 
+import { ActivityType } from '../../common/enums';
 import { STORAGE_SERVICE } from '../../common/storage/storage.tokens';
 import type { StorageService } from '../../common/storage/storage.tokens';
+
+import { ActivitiesService } from '../activities/activities.service';
 
 import {
     PropertyImageResponseDto,
@@ -31,6 +34,7 @@ export class PropertyImagesService {
         @Inject(STORAGE_SERVICE)
         private readonly storage: StorageService,
         private readonly dataSource: DataSource,
+        private readonly activitiesService: ActivitiesService,
     ) {}
 
     async listForProperty(propertyId: string, organizationId: string): Promise<PropertyImageResponseDto[]> {
@@ -47,6 +51,7 @@ export class PropertyImagesService {
     async upload(
         propertyId: string,
         organizationId: string,
+        userId: string,
         files: IncomingFile[] | undefined,
     ): Promise<UploadPropertyImagesResponseDto> {
         await this.ensurePropertyAccess(propertyId, organizationId);
@@ -104,6 +109,17 @@ export class PropertyImagesService {
                     reason: this.normalizeError(error),
                 });
             }
+        }
+
+        if (uploaded.length > 0) {
+            await this.activitiesService.create(organizationId, userId, {
+                type: ActivityType.PHOTO_UPLOAD,
+                content:
+                    uploaded.length === 1
+                        ? 'Foto agregada a la propiedad'
+                        : `${uploaded.length} fotos agregadas a la propiedad`,
+                propertyId,
+            });
         }
 
         return { uploaded, rejected };

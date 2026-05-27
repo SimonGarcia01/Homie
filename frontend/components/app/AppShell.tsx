@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ReactNode, useState } from "react";
 import {
   Sprout, LayoutDashboard, Home, Users, ShieldCheck, LogOut, Menu, X, Bell,
-  Calendar, FileText, Coins, Receipt, BarChart3, UserPlus, Leaf,
+  Calendar, FileText, Coins, Receipt, BarChart3, UserPlus, Leaf, Inbox as InboxIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,6 +31,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     { to: "/app/propiedades", label: "Propiedades", icon: Home },
     { to: "/app/leads", label: "Leads", icon: UserPlus },
     { to: "/app/oportunidades", label: "Oportunidades", icon: Leaf },
+    { to: "/app/inbox", label: "Inbox", icon: InboxIcon },
     { to: "/app/visitas", label: "Visitas", icon: Calendar },
     { to: "/app/documentos", label: "Documentos", icon: FileText },
     ...(canFinances ? [

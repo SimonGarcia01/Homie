@@ -37,6 +37,7 @@ export class AuthService {
             email: user.email,
             organizationId: user.organizationId,
             role: role?.name ?? 'agent',
+            accountType: 'staff',
         });
 
         await this.usersService.markLogin(user.id);
@@ -84,6 +85,7 @@ export class AuthService {
             email: user.email,
             organizationId: user.organizationId,
             role: UserRoleName.ADMIN,
+            accountType: 'staff',
         });
 
         await this.usersService.markLogin(user.id);

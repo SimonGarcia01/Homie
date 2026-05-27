@@ -10,6 +10,7 @@ export type ActivityView = {
     type: string;
     message: string;
     userId: string;
+    userName: string;
     entityId?: string;
     entityLabel?: string;
     date: string;
@@ -23,6 +24,8 @@ const TYPE_UI: Record<string, string> = {
     stage_change: 'oportunidad',
     visit: 'visita',
     document_received: 'documento',
+    property: 'propiedad',
+    photo_upload: 'propiedad',
 };
 
 @Injectable()
@@ -60,11 +63,25 @@ export class ActivitiesService {
             type: TYPE_UI[a.type] ?? 'lead',
             message: a.content ?? a.type,
             userId: a.userId,
+            userName: this.formatUserName(a.user),
             entityId: a.leadId ?? a.opportunityId ?? a.propertyId ?? a.visitId,
-            entityLabel: a.contact
-                ? `${a.contact.firstName} ${a.contact.lastName}`.trim()
-                : a.property?.title,
+            entityLabel: this.resolveEntityLabel(a),
             date: a.createdAt.toISOString(),
         })) satisfies ActivityView[];
+    }
+
+    private formatUserName(user: Activity['user']): string {
+        if (!user) return 'Equipo';
+        const name = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+        return name || user.email || 'Equipo';
+    }
+
+    private resolveEntityLabel(activity: Activity): string {
+        if (activity.property?.title) return activity.property.title;
+        if (activity.contact) {
+            const name = `${activity.contact.firstName} ${activity.contact.lastName}`.trim();
+            if (name) return name;
+        }
+        return '';
     }
 }

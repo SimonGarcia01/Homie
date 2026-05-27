@@ -1,10 +1,13 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
+import { Public } from '../../common/auth/public.decorator';
+
 import { PublicPropertyFilterDto } from './dto/public-property-filter.dto';
 import { PropertiesService } from './properties.service';
 
 @ApiTags('public-properties')
+@Public()
 @Controller('public/properties')
 export class PublicPropertiesController {
     constructor(private readonly service: PropertiesService) {}

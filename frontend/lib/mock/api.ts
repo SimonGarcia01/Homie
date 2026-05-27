@@ -5,6 +5,7 @@ import {
   type Owner,
   type Role,
   type Lead,
+  type Opportunity,
   type Visit,
   type Finance,
   type Document,
@@ -13,6 +14,14 @@ import {
 import * as backendAuth from "@/lib/api/auth";
 import { sendAssistantMessage, type AssistantSendPayload } from "@/lib/api/assistant";
 import { listPropertiesFull, createProperty as createBackendProperty } from "@/lib/api/properties";
+import {
+  createLeadMessage as createBackendLeadMessage,
+  listInboxThreads as fetchInboxThreads,
+  listLeadMessages as fetchLeadMessages,
+  type ConversationMessage,
+  type CreateMessagePayload,
+  type InboxThread,
+} from "@/lib/api/inbox";
 import {
   listPropertyImages as fetchPropertyImages,
   uploadPropertyImages as uploadBackendPropertyImages,
@@ -294,6 +303,18 @@ export const api = {
     return unwrap(await setBackendPropertyImageCover(propertyId, imageId));
   },
 
+  async listInboxThreads(limit = 30): Promise<InboxThread[]> {
+    return unwrap(await fetchInboxThreads(limit));
+  },
+
+  async listLeadMessages(leadId: string, limit = 100): Promise<ConversationMessage[]> {
+    return unwrap(await fetchLeadMessages(leadId, limit));
+  },
+
+  async createLeadMessage(leadId: string, payload: CreateMessagePayload): Promise<ConversationMessage> {
+    return unwrap(await createBackendLeadMessage(leadId, payload));
+  },
+
   async getDashboard() {
     const properties = await this.listProperties();
     const finances = await loadAllFinances();
@@ -466,16 +487,15 @@ export const api = {
 
   async getRecentActivity(limit = 8) {
     const rows = unwrap(await crm.listActivities(limit));
-    const users = await this.listUsers();
     return rows.map((a) => ({
       id: a.id,
       type: a.type as "lead" | "visita" | "documento" | "propiedad" | "oportunidad" | "contrato",
       message: a.message,
       userId: a.userId,
+      userName: a.userName ?? "Equipo",
       entityId: a.entityId ?? a.id,
       entityLabel: a.entityLabel ?? "",
       date: a.date,
-      user: users.find((u) => u.id === a.userId),
     }));
   },
 
@@ -510,12 +530,13 @@ export const api = {
     return crm.convertLead(id, propertyId);
   },
 
-  async listOpportunities(): Promise<(Lead & { property?: Property })[]> {
+  async listOpportunities(): Promise<Opportunity[]> {
     const properties = await this.listProperties();
     const board = unwrap(await crm.getOpportunityBoard());
     const items = board.stages.flatMap((s) =>
       s.items.map((item) => ({
         id: item.id,
+        leadId: item.leadId ?? "",
         name: item.name,
         email: item.email,
         phone: item.phone,
@@ -526,6 +547,7 @@ export const api = {
     );
     return items.map((l) => ({
       ...l,
+      leadId: l.leadId,
       property: l.propertyId ? properties.find((p) => p.id === l.propertyId) : undefined,
     }));
   },
@@ -548,6 +570,16 @@ export const api = {
 
   async updateVisit(id: string, patch: { status?: string; scheduledAt?: string }) {
     return mapVisitRow(unwrap(await crm.updateVisit(id, patch)));
+  },
+
+  async scheduleVisit(input: {
+    leadId: string;
+    propertyId: string;
+    scheduledAt: string;
+    durationMin?: number;
+    notes?: string;
+  }) {
+    return mapVisitRow(unwrap(await crm.scheduleVisit(input)));
   },
 
   async listDocuments(): Promise<(Document & { property?: Property; lead?: Lead; owner?: Owner })[]> {

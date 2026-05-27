@@ -102,6 +102,20 @@ export async function listVisits(): Promise<VisitRow[] | ApiError> {
   return requestJson<VisitRow[]>("/api/visits");
 }
 
+export async function scheduleVisit(input: {
+  leadId: string;
+  propertyId: string;
+  scheduledAt: string;
+  durationMin?: number;
+  notes?: string;
+  visitType?: "in_person" | "virtual";
+}): Promise<VisitRow | ApiError> {
+  return requestJson<VisitRow>("/api/visits/schedule", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export async function listUpcomingVisits(): Promise<VisitRow[] | ApiError> {
   return requestJson<VisitRow[]>("/api/visits/upcoming");
 }
@@ -126,6 +140,7 @@ export type ActivityRow = {
   type: string;
   message: string;
   userId: string;
+  userName?: string;
   entityId?: string;
   entityLabel?: string;
   date: string;

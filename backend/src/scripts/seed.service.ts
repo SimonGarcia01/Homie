@@ -133,6 +133,7 @@ export class SeedService {
 
         const adminRole = roles.find((role) => role.name === UserRoleName.ADMIN)!;
         const agentRole = roles.find((role) => role.name === UserRoleName.AGENT)!;
+        const coordinatorRole = roles.find((role) => role.name === UserRoleName.COORDINATOR)!;
 
         const adminUser = await this.ensureUser({
             email: 'admin@boho.test',
@@ -150,6 +151,15 @@ export class SeedService {
             organizationId: organization.id,
             roleId: agentRole.id,
             password: 'Agent1234!',
+        });
+
+        const coordinatorUser = await this.ensureUser({
+            email: 'coord@boho.test',
+            firstName: 'Coord',
+            lastName: 'Boho',
+            organizationId: organization.id,
+            roleId: coordinatorRole.id,
+            password: 'Coord1234!',
         });
 
         const ownerContact = await this.ensureContact({
@@ -322,15 +332,16 @@ export class SeedService {
         return {
             organization,
             roles,
-            users: [adminUser.email, agentUser.email],
+            users: [adminUser.email, agentUser.email, coordinatorUser.email],
             contacts: [ownerContact.email, tenantContact.email, leadContact.email],
             property: property.code,
             lead: lead.id,
             opportunity: opportunity.id,
             rentalApplication: rentalApplication.id,
             credentials: [
-                { email: 'admin@boho.test', password: 'Admin1234!' },
-                { email: 'agent@boho.test', password: 'Agent1234!' },
+                { email: 'admin@boho.test', password: 'Admin1234!', role: 'admin' },
+                { email: 'coord@boho.test', password: 'Coord1234!', role: 'coordinator' },
+                { email: 'agent@boho.test', password: 'Agent1234!', role: 'agent' },
             ],
         };
     }
