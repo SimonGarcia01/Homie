@@ -3,7 +3,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { Contact } from '../contacts/entities/contact.entity';
 import { LeadsModule } from '../leads/leads.module';
+import { ApplicationApplicant } from '../rental-applications/entities/application-applicant.entity';
+import { RentalApplication } from '../rental-applications/entities/rental-application.entity';
 import { Property } from '../properties/entities/property.entity';
 import { PropertiesModule } from '../properties/properties.module';
 import { UsersModule } from '../users/users.module';
@@ -26,7 +29,15 @@ import { ProspectsService } from './prospects.service';
                 },
             }),
         }),
-        TypeOrmModule.forFeature([ProspectAccount, ProspectFavorite, ProspectInquiry, Property]),
+        TypeOrmModule.forFeature([
+            ProspectAccount,
+            ProspectFavorite,
+            ProspectInquiry,
+            Property,
+            Contact,
+            ApplicationApplicant,
+            RentalApplication,
+        ]),
         UsersModule,
         LeadsModule,
         PropertiesModule,

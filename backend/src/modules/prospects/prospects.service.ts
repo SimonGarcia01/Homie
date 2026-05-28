@@ -1,9 +1,12 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 
-import { PropertyCommercialStatus, PropertyPublicationStatus } from '../../common/enums';
+import { ApplicantRole, PropertyCommercialStatus, PropertyPublicationStatus, RentalApplicationStatus } from '../../common/enums';
+import { Contact } from '../contacts/entities/contact.entity';
+import { ApplicationApplicant } from '../rental-applications/entities/application-applicant.entity';
+import { RentalApplication } from '../rental-applications/entities/rental-application.entity';
 import { LeadsService } from '../leads/leads.service';
 import { Property } from '../properties/entities/property.entity';
 import { PropertiesService } from '../properties/properties.service';
@@ -34,6 +37,12 @@ export class ProspectsService {
         private readonly inquiriesRepo: Repository<ProspectInquiry>,
         @InjectRepository(Property)
         private readonly propertiesRepo: Repository<Property>,
+        @InjectRepository(Contact)
+        private readonly contactsRepo: Repository<Contact>,
+        @InjectRepository(ApplicationApplicant)
+        private readonly applicantsRepo: Repository<ApplicationApplicant>,
+        @InjectRepository(RentalApplication)
+        private readonly applicationsRepo: Repository<RentalApplication>,
         private readonly usersService: UsersService,
         private readonly leadsService: LeadsService,
         private readonly propertiesService: PropertiesService,
@@ -129,6 +138,75 @@ export class ProspectsService {
         if (!favorite) throw new NotFoundException('Favorite not found');
         await this.favoritesRepo.remove(favorite);
         return { id: propertyId };
+    }
+
+    async listApplications(prospectId: string) {
+        const account = await this.accountsRepo.findOne({ where: { id: prospectId } });
+        if (!account) throw new NotFoundException('Account not found');
+
+        const contacts = await this.contactsRepo
+            .createQueryBuilder('contact')
+            .where('LOWER(contact.email) = LOWER(:email)', { email: account.email })
+            .getMany();
+
+        if (contacts.length === 0) return [];
+
+        const contactIds = contacts.map((contact) => contact.id);
+        const applicants = await this.applicantsRepo.find({
+            where: {
+                contactId: In(contactIds),
+                applicantRole: ApplicantRole.PRIMARY_TENANT,
+            },
+            relations: {
+                rentalApplication: {
+                    property: { location: true, organization: true },
+                },
+            },
+            order: { createdAt: 'DESC' },
+        });
+
+        const seen = new Set<string>();
+        return applicants
+            .filter((row) => {
+                if (!row.rentalApplication || seen.has(row.rentalApplication.id)) return false;
+                seen.add(row.rentalApplication.id);
+                return true;
+            })
+            .map((row) => {
+                const app = row.rentalApplication!;
+                return {
+                    id: app.id,
+                    status: app.status,
+                    statusLabel: this.applicationStatusLabel(app.status),
+                    createdAt: app.createdAt.toISOString(),
+                    property: app.property
+                        ? {
+                              id: app.property.id,
+                              title: app.property.title,
+                              city: app.property.location?.city,
+                          }
+                        : undefined,
+                    organization: app.property?.organization
+                        ? {
+                              id: app.property.organization.id,
+                              name: app.property.organization.name,
+                              slug: app.property.organization.slug,
+                          }
+                        : undefined,
+                };
+            });
+    }
+
+    private applicationStatusLabel(status: RentalApplicationStatus) {
+        const labels: Record<RentalApplicationStatus, string> = {
+            [RentalApplicationStatus.STARTED]: 'Iniciada',
+            [RentalApplicationStatus.PENDING_DOCUMENTS]: 'Documentos pendientes',
+            [RentalApplicationStatus.UNDER_REVIEW]: 'En revisión',
+            [RentalApplicationStatus.APPROVED]: 'Aprobada',
+            [RentalApplicationStatus.REJECTED]: 'Rechazada',
+            [RentalApplicationStatus.WITHDRAWN]: 'Retirada',
+        };
+        return labels[status] ?? status;
     }
 
     async listInquiries(prospectId: string) {

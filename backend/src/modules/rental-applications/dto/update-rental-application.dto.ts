@@ -1,5 +1,11 @@
-import { PartialType } from '@nestjs/swagger';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEnum, IsOptional } from 'class-validator';
 
-import { CreateRentalApplicationDto } from './create-rental-application.dto';
+import { RentalApplicationStatus } from '../../../common/enums';
 
-export class UpdateRentalApplicationDto extends PartialType(CreateRentalApplicationDto) {}
+export class UpdateRentalApplicationDto {
+    @ApiPropertyOptional({ enum: RentalApplicationStatus })
+    @IsOptional()
+    @IsEnum(RentalApplicationStatus)
+    status?: RentalApplicationStatus;
+}

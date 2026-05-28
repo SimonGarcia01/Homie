@@ -61,6 +61,13 @@ export class ProspectsController {
 
     @ProspectAuth()
     @ApiBearerAuth()
+    @Get('applications')
+    listApplications(@Req() req: ProspectRequest) {
+        return this.service.listApplications(req.user.id);
+    }
+
+    @ProspectAuth()
+    @ApiBearerAuth()
     @Get('inquiries')
     listInquiries(@Req() req: ProspectRequest) {
         return this.service.listInquiries(req.user.id);

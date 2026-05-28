@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Home, Plus, Search, MapPin, BedDouble, Bath, Ruler, ImageOff } from "lucide-react";
+import { Home, Plus, MapPin, BedDouble, Bath, Ruler, ImageOff } from "lucide-react";
+import { SearchInputWithSpeech } from "@/components/speech/SearchInputWithSpeech";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { api, can } from "@/lib/mock/api";
 import { useAuth } from "@/contexts/AuthContext";
 import type { Property } from "@/lib/mock/db";
@@ -72,6 +72,11 @@ export default function Properties() {
     setSelected((prev) => (prev?.id === propertyId ? { ...prev, images: urls } : prev));
   }, []);
 
+  const handlePropertyUpdated = useCallback((updated: Property) => {
+    setItems((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    setSelected(updated);
+  }, []);
+
   const filtered = items.filter((p) => {
     if (filter !== "todas" && p.status !== filter) return false;
     if (q && !`${p.title} ${p.address} ${p.city}`.toLowerCase().includes(q.toLowerCase())) return false;
@@ -94,10 +99,13 @@ export default function Properties() {
       </header>
 
       <div className="mt-6 flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por título, dirección o comuna" className="pl-9 h-11" />
-        </div>
+        <SearchInputWithSpeech
+          className="flex-1"
+          inputClassName="h-11"
+          value={q}
+          onChange={setQ}
+          placeholder="Buscar por título, dirección o comuna"
+        />
         <div className="flex gap-2 overflow-x-auto">
           <button type="button" onClick={() => setView("grid")} className={cn("px-4 h-11 rounded-full text-sm font-medium border whitespace-nowrap", view === "grid" ? "bg-primary text-primary-foreground border-primary" : "bg-surface border-border")}>Lista</button>
           <button type="button" onClick={() => setView("map")} className={cn("px-4 h-11 rounded-full text-sm font-medium border whitespace-nowrap", view === "map" ? "bg-primary text-primary-foreground border-primary" : "bg-surface border-border")}>Mapa</button>
@@ -193,6 +201,7 @@ export default function Properties() {
           }
         }}
         onImagesUpdated={handleImagesUpdated}
+        onPropertyUpdated={handlePropertyUpdated}
       />
     </AppShell>
   );

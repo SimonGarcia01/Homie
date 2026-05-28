@@ -3,8 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { BedDouble, Bath, Building2, Home, ImageOff, MapPin, Search } from "lucide-react";
-import { Input } from "@/components/ui/input";
+import { BedDouble, Bath, Building2, Home, MapPin } from "lucide-react";
+import { SearchInputWithSpeech } from "@/components/speech/SearchInputWithSpeech";
 import { SeekerShell } from "@/components/interesado/SeekerShell";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +19,7 @@ import {
   listPublicProperties,
   type PublicProperty,
 } from "@/lib/api/public-properties";
-import { SpeechToTextButton } from "@/components/speech/SpeechToTextButton";
+import { getPublicPropertyCover } from "@/lib/property-cover";
 
 type PublicOrg = { id: string; name: string; slug: string; propertyCount: number };
 
@@ -100,22 +100,13 @@ export default function Buscar() {
         </header>
 
         <div className="mt-8 flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1 max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-            <Input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Buscar por título, comuna o dirección"
-              className="pl-9 pr-12 h-11"
-            />
-            <div className="absolute right-1 top-1/2 -translate-y-1/2">
-              <SpeechToTextButton
-                value={q}
-                onChange={setQ}
-                className="h-9 w-9 rounded-lg"
-              />
-            </div>
-          </div>
+          <SearchInputWithSpeech
+            className="flex-1 max-w-xl"
+            inputClassName="h-11"
+            value={q}
+            onChange={setQ}
+            placeholder="Buscar por título, comuna o dirección"
+          />
           {orgOptions.length > 0 && (
             <Select value={orgFilter} onValueChange={setOrgFilter}>
               <SelectTrigger className="w-full sm:w-[240px] h-11">
@@ -175,9 +166,7 @@ export default function Buscar() {
             </p>
             <ul className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {items.map((p) => {
-                const imgs = p.images ?? [];
-                const cover =
-                  p.coverImageUrl ?? imgs.find((i) => i.isCover)?.imageUrl ?? imgs[0]?.imageUrl;
+                const cover = getPublicPropertyCover(p);
                 return (
                   <li key={p.id}>
                     <Link
@@ -185,18 +174,12 @@ export default function Buscar() {
                       className="group block rounded-2xl border border-border bg-surface overflow-hidden shadow-soft hover:shadow-card transition-all hover:-translate-y-0.5"
                     >
                       <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-                        {cover ? (
-                          <img
-                            src={cover}
-                            alt={p.title}
-                            loading="lazy"
-                            className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="absolute inset-0 grid place-items-center text-muted-foreground">
-                            <ImageOff className="h-8 w-8" />
-                          </div>
-                        )}
+                        <img
+                          src={cover}
+                          alt={p.title}
+                          loading="lazy"
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
                       </div>
                       <div className="p-4">
                         <h2 className="font-display text-lg font-semibold line-clamp-1">{p.title}</h2>

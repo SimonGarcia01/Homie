@@ -1,14 +1,16 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsDateString, IsNumberString, IsOptional, IsUUID } from 'class-validator';
 
 export class CreateRentalContractDto {
-    @ApiProperty({ required: false })
+    @IsDateString()
+    startDate!: string;
+
+    @IsDateString()
+    endDate!: string;
+
+    @IsNumberString()
+    monthlyRent!: string;
+
     @IsOptional()
     @IsUUID()
-    organizationId?: string;
-
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsString()
-    name?: string;
+    tenantContactId?: string;
 }

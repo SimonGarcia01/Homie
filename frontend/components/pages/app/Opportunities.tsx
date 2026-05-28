@@ -1,7 +1,18 @@
 "use client";
 
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
+import { useDraggable, useDroppable } from "@dnd-kit/core";
+import { CSS } from "@dnd-kit/utilities";
 import { useEffect, useMemo, useState } from "react";
-import { Sprout, Leaf, TreeDeciduous, Flower2, CheckCircle2, XCircle, Mail, Phone, ArrowRight, MessageSquare } from "lucide-react";
+import { Sprout, Leaf, TreeDeciduous, Flower2, CheckCircle2, XCircle, Mail, Phone, ArrowRight, MessageSquare, GripVertical } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +21,7 @@ import type { Lead, Property } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
 import { LeadConversationDialog } from "@/components/conversations/LeadConversationDialog";
 import type { LeadConversationTarget } from "@/components/conversations/LeadConversationPanel";
+import { toast } from "@/hooks/use-toast";
 
 type LeadRow = Lead & { property?: Property; leadId?: string };
 
@@ -23,13 +35,124 @@ const STAGES: { key: Lead["stage"]; label: string; description: string; icon: ty
 
 function initials(n: string) { return n.split(" ").map((p) => p[0]).slice(0, 2).join("").toUpperCase(); }
 
+function OpportunityCard({
+  item,
+  dragging = false,
+  onConversation,
+}: {
+  item: LeadRow;
+  dragging?: boolean;
+  onConversation: (item: LeadRow) => void;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-xl border border-border/60 bg-background/60 p-3 transition-colors",
+        dragging ? "shadow-leaf ring-2 ring-primary/30" : "hover:border-primary/30",
+      )}
+    >
+      <div className="flex items-center gap-2.5">
+        <GripVertical className="h-3.5 w-3.5 text-muted-foreground/60 shrink-0 cursor-grab active:cursor-grabbing" />
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-leaf text-primary-foreground text-[11px] font-semibold shrink-0">{initials(item.name)}</div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium truncate text-foreground">{item.name}</p>
+          <p className="text-[11px] text-muted-foreground truncate">{item.property?.title ?? "Sin propiedad"}</p>
+        </div>
+      </div>
+      <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground pl-5">
+        <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{item.email.split("@")[0]}</span>
+        <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{item.phone.slice(-7)}</span>
+      </div>
+      {item.leadId && (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mt-2 h-7 px-2 text-[11px] ml-5"
+          onClick={() => onConversation(item)}
+        >
+          <MessageSquare className="h-3 w-3" /> Conversación
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function DraggableCard({ item, onConversation }: { item: LeadRow; onConversation: (item: LeadRow) => void }) {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: item.id });
+  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+
+  return (
+    <li ref={setNodeRef} style={style} className={cn(isDragging && "opacity-40")} {...listeners} {...attributes}>
+      <OpportunityCard item={item} onConversation={onConversation} />
+    </li>
+  );
+}
+
+function StageColumn({
+  stage,
+  items,
+  onConversation,
+}: {
+  stage: (typeof STAGES)[number];
+  items: LeadRow[];
+  onConversation: (item: LeadRow) => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: stage.key });
+  const Icon = stage.icon;
+  const iconTone = { primary: "bg-primary/10 text-primary", secondary: "bg-secondary/15 text-secondary", accent: "bg-accent/15 text-accent" }[stage.tone] ?? "bg-muted";
+
+  return (
+    <section
+      ref={setNodeRef}
+      className={cn(
+        "rounded-2xl border bg-surface/80 backdrop-blur p-4 shadow-soft min-h-[280px] transition-colors",
+        isOver ? "border-primary/50 bg-primary/5" : "border-border",
+      )}
+    >
+      <header className="flex items-start gap-3 mb-4">
+        <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl", iconTone)}><Icon className="h-4 w-4" /></span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-sm font-semibold">{stage.label}</h3>
+            <span className="text-xs font-display tabular-nums text-foreground/70">{items.length}</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">{stage.description}</p>
+        </div>
+      </header>
+      {items.length === 0 ? (
+        <p className="text-xs text-muted-foreground italic px-1">Sin oportunidades aquí.</p>
+      ) : (
+        <ul className="space-y-2.5">
+          {items.map((l) => (
+            <DraggableCard key={l.id} item={l} onConversation={onConversation} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 export default function Opportunities() {
   const [items, setItems] = useState<LeadRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [conversationTarget, setConversationTarget] = useState<LeadConversationTarget | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   useEffect(() => {
-    api.listOpportunities().then((l) => { setItems(l); setLoading(false); });
+    api
+      .listOpportunities()
+      .then((l) => setItems(l))
+      .catch((err) => {
+        toast({
+          title: "No se pudo cargar el pipeline",
+          description: err instanceof Error ? err.message : "Intenta de nuevo.",
+          variant: "destructive",
+        });
+        setItems([]);
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const byStage = useMemo(() => {
@@ -40,10 +163,61 @@ export default function Opportunities() {
     return map;
   }, [items]);
 
+  const activeItem = useMemo(() => items.find((i) => i.id === activeId) ?? null, [items, activeId]);
+
   const total = items.filter((l) => l.stage !== "perdido" && l.stage !== "ganado").length;
   const ganados = byStage.ganado?.length ?? 0;
   const perdidos = byStage.perdido?.length ?? 0;
   const conversion = total + ganados > 0 ? Math.round((ganados / (total + ganados + perdidos)) * 100) : 0;
+
+  function handleConversation(item: LeadRow) {
+    if (!item.leadId) return;
+    setConversationTarget({
+      leadId: item.leadId,
+      contactName: item.name,
+      propertyTitle: item.property?.title,
+      opportunityId: item.id,
+    });
+  }
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(String(event.active.id));
+  }
+
+  async function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    const opportunityId = String(active.id);
+    const newStage = String(over.id) as Lead["stage"];
+    const item = items.find((i) => i.id === opportunityId);
+    if (!item || item.stage === newStage) return;
+    if (!STAGES.some((s) => s.key === newStage) && newStage !== "perdido") return;
+
+    const prev = items;
+    setItems((current) =>
+      current.map((i) => (i.id === opportunityId ? { ...i, stage: newStage } : i)),
+    );
+
+    try {
+      await api.updateOpportunityStage(opportunityId, newStage);
+      if (newStage === "aplicacion" && item.propertyId) {
+        try {
+          await api.createApplication(opportunityId, item.propertyId);
+        } catch {
+          // Application may already exist
+        }
+      }
+    } catch (err) {
+      setItems(prev);
+      toast({
+        title: "No se pudo mover",
+        description: err instanceof Error ? err.message : "Intenta de nuevo.",
+        variant: "destructive",
+      });
+    }
+  }
 
   return (
     <AppShell>
@@ -51,7 +225,7 @@ export default function Opportunities() {
         <div>
           <p className="text-sm text-muted-foreground">Crecimiento</p>
           <h1 className="font-display text-3xl md:text-4xl font-semibold tracking-tight">Oportunidades</h1>
-          <p className="text-muted-foreground mt-1">El pipeline visto como un jardín en distintas estaciones.</p>
+          <p className="text-muted-foreground mt-1">Arrastra las tarjetas entre etapas para actualizar el pipeline.</p>
         </div>
         <div className="flex gap-3">
           <StatPill label="En cultivo" value={total} />
@@ -65,65 +239,23 @@ export default function Opportunities() {
           {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-96" />)}
         </div>
       ) : (
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-          {STAGES.map((s) => {
-            const list = byStage[s.key] ?? [];
-            const Icon = s.icon;
-            const iconTone = { primary: "bg-primary/10 text-primary", secondary: "bg-secondary/15 text-secondary", accent: "bg-accent/15 text-accent" }[s.tone] ?? "bg-muted";
-            return (
-              <section key={s.key} className="rounded-2xl border border-border bg-surface/80 backdrop-blur p-4 shadow-soft">
-                <header className="flex items-start gap-3 mb-4">
-                  <span className={cn("flex h-9 w-9 items-center justify-center rounded-xl", iconTone)}><Icon className="h-4 w-4" /></span>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-display text-sm font-semibold">{s.label}</h3>
-                      <span className="text-xs font-display tabular-nums text-foreground/70">{list.length}</span>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">{s.description}</p>
-                  </div>
-                </header>
-                {list.length === 0 ? (
-                  <p className="text-xs text-muted-foreground italic px-1">Sin oportunidades aquí.</p>
-                ) : (
-                  <ul className="space-y-2.5">
-                    {list.map((l) => (
-                      <li key={l.id} className="rounded-xl border border-border/60 bg-background/60 p-3 hover:border-primary/30 transition-colors">
-                        <div className="flex items-center gap-2.5">
-                          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-leaf text-primary-foreground text-[11px] font-semibold shrink-0">{initials(l.name)}</div>
-                          <div className="min-w-0 flex-1">
-                            <p className="text-sm font-medium truncate text-foreground">{l.name}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{l.property?.title ?? "Sin propiedad"}</p>
-                          </div>
-                        </div>
-                        <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
-                          <span className="inline-flex items-center gap-1"><Mail className="h-3 w-3" />{l.email.split("@")[0]}</span>
-                          <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" />{l.phone.slice(-7)}</span>
-                        </div>
-                        {l.leadId && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="mt-2 h-7 px-2 text-[11px]"
-                            onClick={() =>
-                              setConversationTarget({
-                                leadId: l.leadId!,
-                                contactName: l.name,
-                                propertyTitle: l.property?.title,
-                                opportunityId: l.id,
-                              })
-                            }
-                          >
-                            <MessageSquare className="h-3 w-3" /> Conversación
-                          </Button>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            );
-          })}
-        </div>
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={(e) => void handleDragEnd(e)}>
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            {STAGES.map((s) => (
+              <StageColumn
+                key={s.key}
+                stage={s}
+                items={byStage[s.key] ?? []}
+                onConversation={handleConversation}
+              />
+            ))}
+          </div>
+          <DragOverlay>
+            {activeItem ? (
+              <OpportunityCard item={activeItem} dragging onConversation={handleConversation} />
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       )}
 
       {perdidos > 0 && (

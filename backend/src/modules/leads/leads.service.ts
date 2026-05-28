@@ -8,6 +8,8 @@ import { ContactsService } from '../contacts/contacts.service';
 import { OpportunitiesService } from '../opportunities/opportunities.service';
 import { Opportunity } from '../opportunities/entities/opportunity.entity';
 import { OpportunityProperty } from '../opportunities/entities/opportunity-property.entity';
+import { ProspectInquiryStatus } from '../prospects/entities/prospect-inquiry.entity';
+import { ProspectInquirySyncService } from '../prospects/prospect-inquiry-sync.service';
 
 import { ConvertLeadDto, CreateLeadDto, UpdateLeadDto } from './dto/create-lead.dto';
 import { Lead } from './entities/lead.entity';
@@ -35,6 +37,7 @@ export class LeadsService {
         private readonly contactsService: ContactsService,
         private readonly opportunitiesService: OpportunitiesService,
         private readonly activitiesService: ActivitiesService,
+        private readonly inquirySync: ProspectInquirySyncService,
     ) {}
 
     private statusToStage(status: LeadStatus): string {
@@ -196,6 +199,8 @@ export class LeadsService {
                 leadId: id,
                 contactId: lead.contactId,
             });
+            const property = await this.resolvePropertyForLead(id);
+            await this.inquirySync.syncByLead(id, property.propertyId, ProspectInquiryStatus.CONTACTED);
         }
 
         return this.toView(lead);

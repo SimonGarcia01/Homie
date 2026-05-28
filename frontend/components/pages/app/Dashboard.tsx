@@ -5,8 +5,9 @@ import Link from "next/link";
 import {
   Home, Sprout, Calendar, FileText, Wallet, AlertTriangle, ArrowUpRight,
   Plus, UserPlus, CalendarPlus, Upload, BarChart3, Leaf, TrendingUp, TrendingDown,
-  Flower2, TreeDeciduous, CheckCircle2, ArrowRight, Coins, Receipt,
+  Flower2, TreeDeciduous, CheckCircle2, ArrowRight, Coins, Receipt, X, Clock, Sparkles, RotateCcw,
 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
@@ -14,6 +15,7 @@ import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, can } from "@/lib/mock/api";
+import { getWeeklyDigest, isAiError, type WeeklyDigest } from "@/lib/api/ai";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { LeafRain } from "@/components/garden/LeafRain";
@@ -54,6 +56,14 @@ export default function Dashboard() {
   const [loadingDash, setLoadingDash] = useState(true);
   const [loadingActivity, setLoadingActivity] = useState(true);
   const [loadingVisits, setLoadingVisits] = useState(true);
+  const [reminderDismissed, setReminderDismissed] = useState(false);
+  const [digest, setDigest] = useState<WeeklyDigest | null>(null);
+  const [digestLoading, setDigestLoading] = useState(true);
+
+  useEffect(() => {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    setReminderDismissed(sessionStorage.getItem(`visit-reminder-dismissed-${todayKey}`) === "1");
+  }, []);
 
   useEffect(() => {
     void api.getDashboard()
@@ -70,6 +80,11 @@ export default function Dashboard() {
       .then(setUpcoming)
       .catch(() => setUpcoming([]))
       .finally(() => setLoadingVisits(false));
+
+    void getWeeklyDigest()
+      .then((r) => { if (!isAiError(r)) setDigest(r); })
+      .catch(() => {})
+      .finally(() => setDigestLoading(false));
   }, []);
 
   const greeting = (() => {
@@ -86,6 +101,23 @@ export default function Dashboard() {
       ? "Tu cartera está floreciendo. No hay pendientes críticos."
       : `Tu cartera está en orden. Hay ${dash.alerts.length} jardineras que piden atención.`
     : "Preparando tu jardín…";
+
+  const visitsToday = upcoming.filter((v) => {
+    const d = new Date(v.date);
+    const today = new Date();
+    return (
+      d.getFullYear() === today.getFullYear() &&
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate() &&
+      v.status === "programada"
+    );
+  });
+
+  function dismissReminder() {
+    const todayKey = new Date().toISOString().slice(0, 10);
+    sessionStorage.setItem(`visit-reminder-dismissed-${todayKey}`, "1");
+    setReminderDismissed(true);
+  }
 
   const [portal, setPortal] = useState<PortalOrigin | null>(null);
 
@@ -110,10 +142,79 @@ export default function Dashboard() {
         <p className="text-muted-foreground mt-2 max-w-2xl">{heroMessage}</p>
       </section>
 
+      {/* Weekly AI Digest */}
+      <section className="rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 flex items-start gap-4 shadow-soft">
+        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0 mt-0.5">
+          <Sparkles className="h-4 w-4" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium text-primary uppercase tracking-wide mb-1">
+            Resumen de la semana
+            {digest && <span className="ml-2 text-muted-foreground normal-case tracking-normal font-normal">· {digest.weekLabel}</span>}
+          </p>
+          {digestLoading ? (
+            <div className="space-y-1.5">
+              <div className="h-3 bg-primary/10 rounded animate-pulse w-full" />
+              <div className="h-3 bg-primary/10 rounded animate-pulse w-4/5" />
+            </div>
+          ) : digest ? (
+            <p className="text-sm text-foreground/85 leading-relaxed">{digest.summary}</p>
+          ) : (
+            <p className="text-sm text-muted-foreground">Resumen no disponible — configura OPENAI_API_KEY para activarlo.</p>
+          )}
+        </div>
+        {!digestLoading && (
+          <button
+            type="button"
+            title="Actualizar resumen"
+            className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+            onClick={() => {
+              setDigestLoading(true);
+              getWeeklyDigest(true).then((r) => { if (!isAiError(r)) setDigest(r); }).catch(() => {}).finally(() => setDigestLoading(false));
+            }}
+          >
+            <RotateCcw className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </section>
+
       {error && (
         <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
           {error}
         </div>
+      )}
+
+      {!loadingVisits && visitsToday.length > 0 && !reminderDismissed && (
+        <Alert className="mt-6 border-primary/30 bg-primary/5">
+          <Calendar className="h-4 w-4 text-primary" />
+          <AlertTitle className="font-display">Tienes {visitsToday.length} {visitsToday.length === 1 ? "visita" : "visitas"} hoy</AlertTitle>
+          <AlertDescription className="mt-2 space-y-2">
+            {visitsToday.map((v) => {
+              const d = new Date(v.date);
+              return (
+                <div key={v.id} className="flex items-center justify-between gap-3 text-sm">
+                  <span>
+                    <strong>{v.lead?.name ?? "Interesado"}</strong>
+                    {" · "}
+                    {v.property?.title}
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-muted-foreground shrink-0">
+                    <Clock className="h-3.5 w-3.5" />
+                    {d.toLocaleString("es-CL", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+              );
+            })}
+            <div className="flex items-center gap-2 pt-1">
+              <Button asChild variant="soft" size="sm">
+                <Link href="/app/visitas">Ver agenda</Link>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={dismissReminder}>
+                <X className="h-3.5 w-3.5" /> Descartar
+              </Button>
+            </div>
+          </AlertDescription>
+        </Alert>
       )}
 
       {/* Cultivar nuevo — barra compacta de acciones */}

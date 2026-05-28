@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useProspectAuth } from "@/contexts/ProspectAuthContext";
 import { toast } from "@/hooks/use-toast";
+import { FixedThemeToggle } from "@/components/theme/FixedThemeToggle";
 
 export default function InteresadoRegister() {
   const { register } = useProspectAuth();
@@ -57,6 +58,7 @@ export default function InteresadoRegister() {
 
   return (
     <main className="min-h-screen bg-gradient-warm flex items-center justify-center p-6">
+      <FixedThemeToggle />
       <div className="w-full max-w-md rounded-3xl border border-border bg-surface/95 backdrop-blur p-8 shadow-leaf">
         <Link href="/buscar" className="flex items-center gap-2.5 w-fit mb-8">
           <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-leaf shadow-soft">

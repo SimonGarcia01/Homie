@@ -27,25 +27,39 @@ export const Hero = () => {
               Homie conecta a arrendatarios con propiedades de distintos brokers, y les da a otros brokers un espacio cálido para operar leads, visitas, documentos y finanzas.
             </p>
 
-            <div className="mt-9 grid sm:grid-cols-2 gap-3 max-w-lg">
-              <Button asChild variant="hero" size="xl" className="group h-auto py-4 flex-col items-start gap-1">
-                <Link href="/buscar">
-                  <span className="flex items-center gap-2 w-full">
+            <div className="mt-9 grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
+              <Button
+                asChild
+                variant="hero"
+                size="xl"
+                className="group h-auto py-4 whitespace-normal rounded-2xl md:rounded-full"
+              >
+                <Link href="/buscar" className="flex w-full min-w-0 flex-col items-stretch gap-1.5">
+                  <span className="flex items-center gap-2 w-full min-w-0">
                     <Search className="h-4 w-4 shrink-0" />
-                    Buscar arriendo
-                    <ArrowRight className="h-4 w-4 ml-auto transition-transform group-hover:translate-x-0.5" />
+                    <span className="font-semibold">Buscar arriendo</span>
+                    <ArrowRight className="h-4 w-4 ml-auto shrink-0 transition-transform group-hover:translate-x-0.5" />
                   </span>
-                  <span className="text-xs font-normal opacity-80 text-left">Explora sin cuenta · Regístrate para visitas</span>
+                  <span className="text-xs font-normal opacity-80 leading-snug text-left w-full">
+                    Explora sin cuenta · Regístrate para visitas
+                  </span>
                 </Link>
               </Button>
-              <Button asChild variant="soft" size="xl" className="group h-auto py-4 flex-col items-start gap-1">
-                <Link href="/login">
-                  <span className="flex items-center gap-2 w-full">
+              <Button
+                asChild
+                variant="soft"
+                size="xl"
+                className="group h-auto py-4 whitespace-normal rounded-2xl md:rounded-full"
+              >
+                <Link href="/login" className="flex w-full min-w-0 flex-col items-stretch gap-1.5">
+                  <span className="flex items-center gap-2 w-full min-w-0">
                     <Building2 className="h-4 w-4 shrink-0" />
-                    Soy broker
-                    <ArrowRight className="h-4 w-4 ml-auto transition-transform group-hover:translate-x-0.5" />
+                    <span className="font-semibold">Soy broker</span>
+                    <ArrowRight className="h-4 w-4 ml-auto shrink-0 transition-transform group-hover:translate-x-0.5" />
                   </span>
-                  <span className="text-xs font-normal opacity-80 text-left">CRM para tu operación diaria</span>
+                  <span className="text-xs font-normal opacity-80 leading-snug text-left w-full">
+                    CRM para tu operación diaria
+                  </span>
                 </Link>
               </Button>
             </div>
@@ -82,11 +96,23 @@ const DualPreview = () => {
         </div>
         <div className="grid grid-cols-2 gap-3">
           {[
-            { title: "Depto. Las Acacias", city: "Providencia", price: "$650.000" },
-            { title: "Casa Olivos 24", city: "Ñuñoa", price: "$890.000" },
+            {
+              title: "Depto. Las Acacias",
+              city: "Providencia",
+              price: "$650.000",
+              image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80",
+            },
+            {
+              title: "Casa Olivos 24",
+              city: "Ñuñoa",
+              price: "$890.000",
+              image: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=600&q=80",
+            },
           ].map((p) => (
             <div key={p.title} className="rounded-2xl bg-muted/60 border border-border overflow-hidden">
-              <div className="aspect-[4/3] bg-primary/10" />
+              <div className="aspect-[4/3] bg-primary/10 overflow-hidden">
+                <img src={p.image} alt={p.title} className="h-full w-full object-cover" loading="lazy" />
+              </div>
               <div className="p-2.5">
                 <p className="text-xs font-medium truncate">{p.title}</p>
                 <p className="text-[10px] text-muted-foreground">{p.city}</p>

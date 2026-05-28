@@ -7,6 +7,7 @@ import { SeekerShell } from "@/components/interesado/SeekerShell";
 import { Button } from "@/components/ui/button";
 import { listProspectFavorites } from "@/lib/api/prospect-portal";
 import type { PublicProperty } from "@/lib/api/public-properties";
+import { getPublicPropertyCover } from "@/lib/property-cover";
 
 function formatRent(p: PublicProperty) {
   const { monthlyRent, currency } = p.rentalDetail;
@@ -47,15 +48,15 @@ export default function Favoritos() {
         ) : (
           <ul className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {items.map((p) => {
-              const cover = p.coverImageUrl ?? p.images[0]?.imageUrl;
+              const cover = getPublicPropertyCover(p);
               return (
                 <li key={p.id}>
                   <Link
                     href={`/buscar/${p.id}`}
                     className="block rounded-2xl border border-border bg-surface overflow-hidden shadow-soft hover:shadow-card transition-all"
                   >
-                    <div className="aspect-[4/3] bg-muted">
-                      {cover && <img src={cover} alt={p.title} className="h-full w-full object-cover" />}
+                    <div className="aspect-[4/3] bg-muted overflow-hidden">
+                      <img src={cover} alt={p.title} className="h-full w-full object-cover" />
                     </div>
                     <div className="p-4">
                       <h2 className="font-display font-semibold line-clamp-1">{p.title}</h2>

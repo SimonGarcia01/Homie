@@ -16,6 +16,15 @@ export type ProspectInquiry = {
   organization?: { id: string; name: string; slug: string };
 };
 
+export type ProspectApplication = {
+  id: string;
+  status: string;
+  statusLabel: string;
+  createdAt: string;
+  property?: { id: string; title: string; city?: string };
+  organization?: { id: string; name: string; slug: string };
+};
+
 async function parseError(res: Response): Promise<string> {
   const text = await res.text();
   if (!text) return res.statusText || "Request failed";
@@ -63,6 +72,10 @@ export async function getProspectFavoriteStatus(propertyId: string): Promise<{ i
 
 export async function listProspectInquiries(): Promise<ProspectInquiry[] | ApiError> {
   return requestJson<ProspectInquiry[]>("/api/prospect/inquiries");
+}
+
+export async function listProspectApplications(): Promise<ProspectApplication[] | ApiError> {
+  return requestJson<ProspectApplication[]>("/api/prospect/applications");
 }
 
 export async function createProspectInquiry(input: {

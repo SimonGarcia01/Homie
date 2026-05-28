@@ -227,6 +227,41 @@ export async function getMe(): Promise<MeResponse> {
     return payload;
 }
 
+export type UpdateProfilePayload = {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    currentPassword?: string;
+    password?: string;
+};
+
+export async function updateProfile(payload: UpdateProfilePayload): Promise<MeResponse> {
+    const token = getAccessToken();
+    if (!token) {
+        return { error: 'Missing access token', status: 401 };
+    }
+
+    const res = await fetch(buildApiUrl('/api/auth/me'), {
+        method: 'PATCH',
+        headers: {
+            ...getAuthHeader(),
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+        return { error: await parseErrorResponse(res), status: res.status };
+    }
+
+    const data = (await res.json()) as unknown;
+    if (!isProfilePayload(data)) {
+        return { error: 'Invalid user response from server', status: 500 };
+    }
+
+    return data;
+}
+
 export function isAuthProfile(
     value: AuthUser,
 ): value is AuthUser & { firstName: string; lastName: string } {

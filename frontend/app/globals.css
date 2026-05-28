@@ -88,17 +88,38 @@
     --popover-foreground: 42 30% 92%;
     --primary: 100 20% 60%;
     --primary-foreground: 30 12% 10%;
+    --primary-hover: 100 20% 52%;
+    --primary-glow: 100 25% 45%;
     --secondary: 96 12% 32%;
     --secondary-foreground: 42 30% 92%;
     --muted: 30 10% 18%;
     --muted-foreground: 38 15% 65%;
     --accent: 20 51% 60%;
     --accent-foreground: 30 12% 10%;
+    --accent-soft: 20 35% 28%;
     --destructive: 9 40% 48%;
     --destructive-foreground: 42 30% 92%;
+    --success: 105 27% 45%;
+    --warning: 39 55% 52%;
+    --info: 210 14% 55%;
     --border: 30 10% 22%;
     --input: 30 10% 22%;
     --ring: 100 20% 60%;
+    --gradient-warm: linear-gradient(180deg, hsl(30 12% 10%) 0%, hsl(30 10% 14%) 100%);
+    --gradient-garden: radial-gradient(ellipse at top right, hsl(100 25% 30% / 0.25), transparent 60%),
+                       radial-gradient(ellipse at bottom left, hsl(20 40% 25% / 0.2), transparent 55%);
+    --gradient-leaf: linear-gradient(135deg, hsl(100 20% 45%), hsl(100 18% 35%));
+    --shadow-soft: 0 4px 20px -8px hsl(0 0% 0% / 0.35);
+    --shadow-card: 0 8px 30px -12px hsl(0 0% 0% / 0.45);
+    --shadow-leaf: 0 12px 40px -16px hsl(100 30% 20% / 0.35);
+    --sidebar-background: 30 12% 11%;
+    --sidebar-foreground: 42 30% 90%;
+    --sidebar-primary: 100 20% 60%;
+    --sidebar-primary-foreground: 30 12% 10%;
+    --sidebar-accent: 30 10% 16%;
+    --sidebar-accent-foreground: 42 30% 92%;
+    --sidebar-border: 30 10% 20%;
+    --sidebar-ring: 100 20% 60%;
   }
 }
 

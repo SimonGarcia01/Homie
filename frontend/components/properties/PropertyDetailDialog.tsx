@@ -1,17 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import {
   MapPin, BedDouble, Bath, Ruler, Home, ChevronLeft, ChevronRight,
-  Calendar, MessageSquare, Heart, Leaf, Building2, Phone, Mail,
+  Calendar, MessageSquare, Heart, Leaf, Building2, Phone, Mail, Download, Loader2, Pencil, X, Sparkles,
 } from "lucide-react";
+import { generatePropertyDescription, getRentSuggestion, isAiError, type RentSuggestion } from "@/lib/api/ai";
 import { cn } from "@/lib/utils";
 import { resolveMediaUrl } from "@/lib/media-url";
-import type { Property, Owner } from "@/lib/mock/db";
+import type { Property, Owner, PropertyStatus, PropertyType, PublishStatus } from "@/lib/mock/db";
 import { api, can } from "@/lib/mock/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { PropertyImageManager } from "@/components/properties/PropertyImageManager";
 import { ScheduleVisitDialog } from "@/components/visits/ScheduleVisitDialog";
+import { toast } from "@/hooks/use-toast";
 
 const STATUS_TONE: Record<Property["status"], string> = {
   disponible: "bg-primary/10 text-primary border-primary/20",
@@ -39,22 +47,42 @@ export function PropertyDetailDialog({
   onOpenChange,
   focusPhotos = false,
   onImagesUpdated,
+  onPropertyUpdated,
 }: {
   property: Property | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   focusPhotos?: boolean;
   onImagesUpdated?: (propertyId: string, urls: string[]) => void;
+  onPropertyUpdated?: (property: Property) => void;
 }) {
   const { user } = useAuth();
   const [idx, setIdx] = useState(0);
   const [owner, setOwner] = useState<Owner | null>(null);
   const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [rentSuggestion, setRentSuggestion] = useState<RentSuggestion | null>(null);
+  const [editForm, setEditForm] = useState({
+    title: "",
+    description: "",
+    address: "",
+    city: "",
+    rent: 0,
+    currency: "CLP" as Property["currency"],
+    type: "departamento" as PropertyType,
+    status: "disponible" as PropertyStatus,
+    publishStatus: "borrador" as PublishStatus,
+  });
+
+  const canExportPdf = can(user?.role, "reports.view") || can(user?.role, "finances.view");
 
   const canManagePhotos = can(user?.role, "properties.edit");
 
-  useEffect(() => { setIdx(0); }, [property?.id]);
+  useEffect(() => { setIdx(0); setEditing(false); }, [property?.id]);
   useEffect(() => {
     setGalleryUrls(property?.images?.map((url) => resolveMediaUrl(url)) ?? []);
   }, [property?.id, property?.images]);
@@ -64,6 +92,34 @@ export function PropertyDetailDialog({
     api.listOwners().then((os) => setOwner(os.find((o) => o.id === property.ownerId) ?? null));
   }, [property?.id]);
 
+  // Debounced rent suggestion in edit mode
+  useEffect(() => {
+    if (!editing || !editForm.type || !editForm.city) { setRentSuggestion(null); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const result = await getRentSuggestion({ tipo: editForm.type, ciudad: editForm.city, dormitorios: property?.bedrooms, banos: property?.bathrooms });
+        if (!isAiError(result) && result !== null) setRentSuggestion(result);
+        else setRentSuggestion(null);
+      } catch { setRentSuggestion(null); }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [editing, editForm.type, editForm.city, property?.bedrooms, property?.bathrooms]);
+
+  useEffect(() => {
+    if (!property) return;
+    setEditForm({
+      title: property.title,
+      description: property.description,
+      address: property.address,
+      city: property.city,
+      rent: property.rent,
+      currency: property.currency,
+      type: property.type,
+      status: property.status,
+      publishStatus: property.publishStatus,
+    });
+  }, [property?.id, property?.title, property?.description, property?.address, property?.city, property?.rent, property?.currency, property?.type, property?.status, property?.publishStatus]);
+
   const handleImagesChange = useCallback(
     (urls: string[]) => {
       setGalleryUrls(urls);
@@ -72,6 +128,42 @@ export function PropertyDetailDialog({
     },
     [property?.id, onImagesUpdated],
   );
+
+  async function handleDownloadPdf() {
+    if (!property) return;
+    setDownloadingPdf(true);
+    try {
+      await api.downloadPropertyReport(property.id);
+      toast({ title: "PDF descargado" });
+    } catch (err) {
+      toast({
+        title: "No se pudo descargar",
+        description: err instanceof Error ? err.message : "Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setDownloadingPdf(false);
+    }
+  }
+
+  async function handleSaveEdit() {
+    if (!property) return;
+    setSaving(true);
+    try {
+      const updated = await api.updateProperty(property.id, editForm);
+      onPropertyUpdated?.(updated);
+      toast({ title: "Propiedad actualizada" });
+      setEditing(false);
+    } catch (err) {
+      toast({
+        title: "No se pudo guardar",
+        description: err instanceof Error ? err.message : "Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  }
 
   if (!property) return null;
   const images = galleryUrls;
@@ -186,10 +278,131 @@ export function PropertyDetailDialog({
             />
 
             <section>
-              <h3 className="font-display text-lg font-semibold flex items-center gap-2">
-                <Leaf className="h-4 w-4 text-primary" /> Sobre esta propiedad
-              </h3>
-              <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{property.description}</p>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="font-display text-lg font-semibold flex items-center gap-2">
+                  <Leaf className="h-4 w-4 text-primary" /> Sobre esta propiedad
+                </h3>
+                {canManagePhotos && !editing && (
+                  <Button variant="ghost" size="sm" onClick={() => setEditing(true)}>
+                    <Pencil className="h-3.5 w-3.5" /> Editar
+                  </Button>
+                )}
+              </div>
+              {editing ? (
+                <div className="mt-4 space-y-4 rounded-xl border border-border bg-background p-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label htmlFor="edit-title">Título</Label>
+                      <Input id="edit-title" value={editForm.title} onChange={(e) => setEditForm((f) => ({ ...f, title: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <Label htmlFor="edit-desc">Descripción</Label>
+                        <button
+                          type="button"
+                          disabled={generatingDesc}
+                          className="inline-flex items-center gap-1 text-xs text-primary hover:opacity-80 disabled:opacity-40"
+                          onClick={async () => {
+                            setGeneratingDesc(true);
+                            try {
+                              const result = await generatePropertyDescription({
+                                title: editForm.title,
+                                type: editForm.type,
+                                city: editForm.city,
+                                bedrooms: property?.bedrooms ?? 0,
+                                bathrooms: property?.bathrooms ?? 0,
+                                rent: editForm.rent,
+                                currency: editForm.currency,
+                              });
+                              if (!isAiError(result)) setEditForm((f) => ({ ...f, description: result.description }));
+                            } finally {
+                              setGeneratingDesc(false);
+                            }
+                          }}
+                        >
+                          {generatingDesc ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                          Sugerir
+                        </button>
+                      </div>
+                      <Textarea id="edit-desc" rows={4} value={editForm.description} onChange={(e) => setEditForm((f) => ({ ...f, description: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-address">Dirección</Label>
+                      <Input id="edit-address" value={editForm.address} onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-city">Comuna</Label>
+                      <Input id="edit-city" value={editForm.city} onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-rent">Renta mensual</Label>
+                      <Input id="edit-rent" type="number" min={0} value={editForm.rent || ""} onChange={(e) => setEditForm((f) => ({ ...f, rent: Number(e.target.value) || 0 }))} />
+                      {rentSuggestion && (
+                        <p className="text-[11px] text-muted-foreground">
+                          Comparables: {new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(rentSuggestion.min)} – {new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(rentSuggestion.max)} ({rentSuggestion.basedOn})
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Moneda</Label>
+                      <Select value={editForm.currency} onValueChange={(v) => setEditForm((f) => ({ ...f, currency: v as Property["currency"] }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="CLP">CLP</SelectItem>
+                          <SelectItem value="UF">UF</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Tipo</Label>
+                      <Select value={editForm.type} onValueChange={(v) => setEditForm((f) => ({ ...f, type: v as PropertyType }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="departamento">Departamento</SelectItem>
+                          <SelectItem value="casa">Casa</SelectItem>
+                          <SelectItem value="oficina">Oficina</SelectItem>
+                          <SelectItem value="local">Local comercial</SelectItem>
+                          <SelectItem value="bodega">Bodega</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Estado comercial</Label>
+                      <Select value={editForm.status} onValueChange={(v) => setEditForm((f) => ({ ...f, status: v as PropertyStatus }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="disponible">Disponible</SelectItem>
+                          <SelectItem value="reservada">Reservada</SelectItem>
+                          <SelectItem value="arrendada">Arrendada</SelectItem>
+                          <SelectItem value="inactiva">Inactiva</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2 sm:col-span-2">
+                      <Label>Estado publicación</Label>
+                      <Select value={editForm.publishStatus} onValueChange={(v) => setEditForm((f) => ({ ...f, publishStatus: v as PublishStatus }))}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="borrador">Borrador</SelectItem>
+                          <SelectItem value="publicada">Publicada</SelectItem>
+                          <SelectItem value="pausada">Pausada</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-2">
+                    <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={() => setEditing(false)}>
+                      <X className="h-3.5 w-3.5" /> Cancelar
+                    </Button>
+                    <Button type="button" variant="hero" size="sm" disabled={saving} onClick={() => void handleSaveEdit()}>
+                      {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Guardar cambios"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-foreground/80 leading-relaxed">{property.description}</p>
+              )}
             </section>
 
             {property.amenities && property.amenities.length > 0 && (
@@ -217,6 +430,12 @@ export function PropertyDetailDialog({
                 <Button variant="hero" size="lg" onClick={() => setScheduleOpen(true)}>
                   <Calendar className="h-4 w-4" /> Agendar visita
                 </Button>
+                {canExportPdf && (
+                  <Button variant="soft" size="lg" onClick={() => void handleDownloadPdf()} disabled={downloadingPdf}>
+                    {downloadingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                    Descargar reporte PDF
+                  </Button>
+                )}
                 <Button variant="soft" size="lg"><MessageSquare className="h-4 w-4" /> Contactar interesado</Button>
                 <Button variant="ghost" size="lg"><Heart className="h-4 w-4" /> Marcar como favorita</Button>
               </div>

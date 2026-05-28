@@ -146,6 +146,11 @@ export function ScheduleVisitDialog({
         durationMin: Number(durationMin),
         notes: notes.trim() || undefined,
       });
+      try {
+        await api.contactLead(leadId);
+      } catch {
+        // Lead may already be contacted; visit was scheduled successfully.
+      }
       toast({ title: "Visita agendada", description: "Aparece en tu calendario." });
       onCreated?.();
       onOpenChange(false);

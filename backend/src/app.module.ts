@@ -12,6 +12,7 @@ import { StorageModule } from './common/storage/storage.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { AmenitiesModule } from './modules/amenities/amenities.module';
 import { AssistantModule } from './modules/assistant/assistant.module';
+import { AiUtilsModule } from './modules/ai-utils/ai-utils.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ConversationsModule } from './modules/conversations/conversations.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
@@ -71,6 +72,7 @@ import { VisitsModule } from './modules/visits/visits.module';
         ActivitiesModule,
         ConversationsModule,
         AssistantModule,
+        AiUtilsModule,
         TasksModule,
         VisitsModule,
         RentalApplicationsModule,

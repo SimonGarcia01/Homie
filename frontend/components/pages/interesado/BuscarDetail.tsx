@@ -10,6 +10,7 @@ import { SeekerShell } from "@/components/interesado/SeekerShell";
 import { InquiryDialog } from "@/components/interesado/InquiryDialog";
 import { Button } from "@/components/ui/button";
 import { getPublicProperty, type PublicProperty } from "@/lib/api/public-properties";
+import { getPublicPropertyGallery } from "@/lib/property-cover";
 import {
   addProspectFavorite,
   getProspectFavoriteStatus,
@@ -65,11 +66,7 @@ export default function BuscarDetail() {
     });
   }, [prospect, id]);
 
-  const images = property?.images?.length
-    ? property.images.map((i) => i.imageUrl)
-    : property?.coverImageUrl
-      ? [property.coverImageUrl]
-      : [];
+  const images = property ? getPublicPropertyGallery(property) : [];
 
   function requireAuth(action: () => void) {
     if (!prospect) {

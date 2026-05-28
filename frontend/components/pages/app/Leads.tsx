@@ -2,17 +2,20 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Sprout, Search, Mail, Phone, Home as HomeIcon, Plus, ArrowRight, Flame, Snowflake, MessageSquare } from "lucide-react";
+import { Sprout, Mail, Phone, Home as HomeIcon, Plus, ArrowRight, Flame, Snowflake, MessageSquare, Loader2 } from "lucide-react";
+import { SearchInputWithSpeech } from "@/components/speech/SearchInputWithSpeech";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/mock/api";
 import type { Lead, Property } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
+import { batchLeadScores, isAiError, type LeadScore } from "@/lib/api/ai";
 import { LeadConversationDialog } from "@/components/conversations/LeadConversationDialog";
 import type { LeadConversationTarget } from "@/components/conversations/LeadConversationPanel";
 import { NewLeadDialog } from "@/components/leads/NewLeadDialog";
+import { ConvertLeadDialog } from "@/components/leads/ConvertLeadDialog";
+import { toast } from "@/hooks/use-toast";
 
 type LeadRow = Lead & { property?: Property };
 
@@ -44,6 +47,9 @@ export default function Leads() {
   const [stage, setStage] = useState<"todos" | Lead["stage"]>("todos");
   const [conversationTarget, setConversationTarget] = useState<LeadConversationTarget | null>(null);
   const [newLeadOpen, setNewLeadOpen] = useState(false);
+  const [convertTarget, setConvertTarget] = useState<LeadRow | null>(null);
+  const [contactingId, setContactingId] = useState<string | null>(null);
+  const [leadScores, setLeadScores] = useState<Map<string, LeadScore>>(new Map());
 
   const refreshLeads = () => {
     return api.listLeads().then((l) => setItems(l));
@@ -52,6 +58,19 @@ export default function Leads() {
   useEffect(() => {
     refreshLeads().finally(() => setLoading(false));
   }, []);
+
+  // Load AI scores after leads are fetched
+  useEffect(() => {
+    if (items.length === 0) return;
+    const ids = items.map((l) => l.id);
+    batchLeadScores(ids).then((result) => {
+      if (!isAiError(result)) {
+        const map = new Map<string, LeadScore>();
+        result.scores.forEach((s) => map.set(s.leadId, s));
+        setLeadScores(map);
+      }
+    }).catch(() => { /* silently skip */ });
+  }, [items.length]);
 
   const filtered = useMemo(() => items.filter((l) => {
     if (stage !== "todos" && l.stage !== stage) return false;
@@ -64,6 +83,23 @@ export default function Leads() {
     items.forEach((l) => { c[l.stage] = (c[l.stage] ?? 0) + 1; });
     return c;
   }, [items]);
+
+  async function handleContact(lead: LeadRow) {
+    setContactingId(lead.id);
+    try {
+      await api.contactLead(lead.id);
+      await refreshLeads();
+      toast({ title: "Lead contactado" });
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "No se pudo actualizar",
+        variant: "destructive",
+      });
+    } finally {
+      setContactingId(null);
+    }
+  }
 
   return (
     <AppShell>
@@ -79,10 +115,13 @@ export default function Leads() {
       </header>
 
       <div className="mt-6 flex flex-col md:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por nombre, correo o propiedad" className="pl-9 h-11" />
-        </div>
+        <SearchInputWithSpeech
+          className="flex-1"
+          inputClassName="h-11"
+          value={q}
+          onChange={setQ}
+          placeholder="Buscar por nombre, correo o propiedad"
+        />
         <div className="flex gap-2 overflow-x-auto">
           {(["todos", "nuevo", "contactado", "visita", "aplicacion", "ganado", "perdido"] as const).map((s) => (
             <button key={s} type="button" onClick={() => setStage(s)}
@@ -112,6 +151,13 @@ export default function Leads() {
           {filtered.map((l) => {
             const days = daysSince(l.createdAt);
             const hot = days <= 2;
+            const score = leadScores.get(l.id);
+            const SIGNAL_STYLE = {
+              hot: "bg-accent/15 text-accent border-accent/25",
+              warm: "bg-primary/10 text-primary border-primary/20",
+              cold: "bg-muted text-muted-foreground border-border",
+            };
+            const SIGNAL_LABEL = { hot: "Alta", warm: "Media", cold: "Baja" };
             return (
               <li key={l.id}
                 className="group rounded-2xl border border-border bg-surface p-5 shadow-soft hover:shadow-card transition-all hover:-translate-y-0.5">
@@ -122,13 +168,24 @@ export default function Leads() {
                   <div className="min-w-0 flex-1">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-display text-base font-semibold leading-snug truncate">{l.name}</h3>
-                      <span className={cn("text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full border shrink-0", STAGE_TONE[l.stage])}>
-                        {STAGE_LABEL[l.stage]}
-                      </span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {score && (
+                          <span
+                            className={cn("text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full border", SIGNAL_STYLE[score.signal])}
+                            title={score.reason}
+                          >
+                            {SIGNAL_LABEL[score.signal]}
+                          </span>
+                        )}
+                        <span className={cn("text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full border", STAGE_TONE[l.stage])}>
+                          {STAGE_LABEL[l.stage]}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
                       {hot ? <Flame className="h-3 w-3 text-accent" /> : <Snowflake className="h-3 w-3" />}
                       {days === 0 ? "Hoy" : `Hace ${days} ${days === 1 ? "día" : "días"}`}
+                      {score && <span className="ml-1 opacity-60">· {score.reason}</span>}
                     </p>
                   </div>
                 </div>
@@ -139,20 +196,43 @@ export default function Leads() {
                     <p className="flex items-center gap-2"><HomeIcon className="h-3.5 w-3.5 text-muted-foreground" /><span className="truncate">{l.property.title}</span></p>
                   )}
                 </div>
-                <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() =>
-                      setConversationTarget({
-                        leadId: l.id,
-                        contactName: l.name,
-                        propertyTitle: l.property?.title,
-                      })
-                    }
-                  >
-                    <MessageSquare className="h-3.5 w-3.5" /> Conversación
-                  </Button>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                  <div className="flex flex-wrap gap-1">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() =>
+                        setConversationTarget({
+                          leadId: l.id,
+                          contactName: l.name,
+                          propertyTitle: l.property?.title,
+                        })
+                      }
+                    >
+                      <MessageSquare className="h-3.5 w-3.5" /> Conversación
+                    </Button>
+                    {(l.stage === "nuevo" || l.stage === "contactado") && (
+                      <>
+                        {l.stage === "nuevo" && (
+                          <Button
+                            variant="soft"
+                            size="sm"
+                            disabled={contactingId === l.id}
+                            onClick={() => void handleContact(l)}
+                          >
+                            {contactingId === l.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              "Contactar"
+                            )}
+                          </Button>
+                        )}
+                        <Button variant="hero" size="sm" onClick={() => setConvertTarget(l)}>
+                          Convertir
+                        </Button>
+                      </>
+                    )}
+                  </div>
                   <Link href="/app/oportunidades" className="text-xs text-primary hover:underline inline-flex items-center gap-1">
                     Ver pipeline <ArrowRight className="h-3 w-3" />
                   </Link>
@@ -173,6 +253,13 @@ export default function Leads() {
         open={newLeadOpen}
         onOpenChange={setNewLeadOpen}
         onCreated={() => void refreshLeads()}
+      />
+
+      <ConvertLeadDialog
+        lead={convertTarget}
+        open={!!convertTarget}
+        onOpenChange={(v) => !v && setConvertTarget(null)}
+        onConverted={() => void refreshLeads()}
       />
     </AppShell>
   );

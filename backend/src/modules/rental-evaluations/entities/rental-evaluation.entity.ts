@@ -19,6 +19,9 @@ export class RentalEvaluation extends TimestampEntity {
     @Column({ type: 'enum', enum: EvaluationRecommendation })
     recommendation!: EvaluationRecommendation;
 
+    @Column({ type: 'text', nullable: true })
+    notes?: string;
+
     @ManyToOne(() => RentalApplication, (rentalApplication) => rentalApplication.evaluations)
     @JoinColumn({ name: 'rental_application_id' })
     rentalApplication?: RentalApplication;

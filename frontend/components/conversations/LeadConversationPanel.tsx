@@ -14,6 +14,7 @@ import {
 } from "@/lib/api/inbox";
 import { api } from "@/lib/mock/api";
 import { buildLeadSummaryPrompt, useAssistantBridge } from "@/contexts/AssistantBridgeContext";
+import { generateSmartReply, isAiError } from "@/lib/api/ai";
 import { SpeechToTextButton } from "@/components/speech/SpeechToTextButton";
 
 export type LeadConversationTarget = {
@@ -45,10 +46,25 @@ export function LeadConversationPanel({
   const [messages, setMessages] = useState<Awaited<ReturnType<typeof api.listLeadMessages>>>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [suggestingReply, setSuggestingReply] = useState(false);
   const [channel, setChannel] = useState<MessageChannel>("whatsapp");
   const [direction, setDirection] = useState<MessageDirection>("outbound");
   const [body, setBody] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  async function handleSmartReply() {
+    setSuggestingReply(true);
+    try {
+      const result = await generateSmartReply(target.leadId);
+      if (!isAiError(result)) {
+        setBody(result.draft);
+      } else {
+        toast({ title: "No se pudo sugerir respuesta", description: result.error, variant: "destructive" });
+      }
+    } finally {
+      setSuggestingReply(false);
+    }
+  }
 
   const loadMessages = useCallback(async () => {
     setLoading(true);
@@ -203,10 +219,23 @@ export function LeadConversationPanel({
             className="mt-1"
           />
         </div>
-        <Button type="submit" variant="hero" disabled={sending || !body.trim()} className="w-full">
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-          Registrar interacción
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="soft"
+            size="sm"
+            disabled={suggestingReply || sending}
+            onClick={() => void handleSmartReply()}
+            className="shrink-0"
+          >
+            {suggestingReply ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+            Sugerir respuesta
+          </Button>
+          <Button type="submit" variant="hero" disabled={sending || !body.trim()} className="flex-1">
+            {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            Registrar
+          </Button>
+        </div>
       </form>
     </div>
   );

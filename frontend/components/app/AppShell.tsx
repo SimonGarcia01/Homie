@@ -1,15 +1,19 @@
 "use client";
 
 import { NavLink } from "@/components/NavLink";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import {
   Sprout, LayoutDashboard, Home, Users, ShieldCheck, LogOut, Menu, X, Bell,
   Calendar, FileText, Coins, Receipt, BarChart3, UserPlus, Leaf, Inbox as InboxIcon,
+  Building2, User, ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
+import { GlobalSearch, GlobalSearchTrigger } from "@/components/app/GlobalSearch";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const ROLE_LABEL: Record<string, string> = {
   admin: "Administrador",
@@ -25,14 +29,30 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const canFinances = !!user && (user.role === "admin" || user.role === "coordinador" || user.role === "broker");
   const canReports = canFinances;
+  const canOwners = !!user && (user.role === "admin" || user.role === "coordinador");
+
+  const [searchOpen, setSearchOpen] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchOpen(true);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   const nav = [
     { to: "/app", label: "Inicio", icon: LayoutDashboard, end: true },
     { to: "/app/propiedades", label: "Propiedades", icon: Home },
+    ...(canOwners ? [{ to: "/app/propietarios", label: "Propietarios", icon: Building2 }] : []),
     { to: "/app/leads", label: "Leads", icon: UserPlus },
     { to: "/app/oportunidades", label: "Oportunidades", icon: Leaf },
     { to: "/app/inbox", label: "Inbox", icon: InboxIcon },
     { to: "/app/visitas", label: "Visitas", icon: Calendar },
+    { to: "/app/aplicaciones", label: "Aplicaciones", icon: ClipboardList },
     { to: "/app/documentos", label: "Documentos", icon: FileText },
     ...(canFinances ? [
       { to: "/app/ingresos", label: "Ingresos", icon: Coins },
@@ -95,7 +115,11 @@ export function AppShell({ children }: { children: ReactNode }) {
         </nav>
 
         <div className="p-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-3 px-2 py-2">
+          <Link
+            href="/app/perfil"
+            className="flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-sidebar-accent transition-colors"
+            onClick={() => setOpen(false)}
+          >
             <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-leaf text-primary-foreground font-medium text-sm">
               {user?.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
             </div>
@@ -106,7 +130,8 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {user ? ROLE_LABEL[user.role] : ""}
               </p>
             </div>
-          </div>
+            <User className="h-4 w-4 text-muted-foreground shrink-0" />
+          </Link>
           <Button variant="soft" size="sm" className="w-full mt-2" onClick={handleLogout}>
             <LogOut className="h-4 w-4" />
             Cerrar sesión
@@ -134,13 +159,22 @@ export function AppShell({ children }: { children: ReactNode }) {
                 {new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" })}
               </p>
             </div>
-            <Button variant="ghost" size="icon" aria-label="Notificaciones">
-              <Bell className="h-5 w-5" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <GlobalSearchTrigger
+                onClick={() => setSearchOpen(true)}
+                className="hidden sm:flex items-center gap-2 rounded-xl border border-border bg-surface px-3 py-1.5 hover:bg-surface-muted/60 transition-colors"
+              />
+              <ThemeToggle variant="pill" className="hidden sm:inline-flex" />
+              <ThemeToggle variant="icon" className="sm:hidden" />
+              <Button variant="ghost" size="icon" aria-label="Notificaciones">
+                <Bell className="h-5 w-5" />
+              </Button>
+            </div>
           </div>
         </header>
         <main className="flex-1 px-4 lg:px-8 py-8">{children}</main>
       </div>
+      <GlobalSearch open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
 }

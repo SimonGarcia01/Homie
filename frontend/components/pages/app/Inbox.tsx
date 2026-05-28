@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Inbox, MessageSquare, Search } from "lucide-react";
+import { Inbox, MessageSquare } from "lucide-react";
+import { SearchInputWithSpeech } from "@/components/speech/SearchInputWithSpeech";
 import { AppShell } from "@/components/app/AppShell";
-import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CHANNEL_LABELS, DIRECTION_LABELS, type InboxThread } from "@/lib/api/inbox";
 import { api } from "@/lib/mock/api";
@@ -54,15 +54,12 @@ export default function InboxPage() {
       <div className="mt-6 grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5 min-h-[620px]">
         <section className="rounded-2xl border border-border bg-surface shadow-soft overflow-hidden flex flex-col">
           <div className="p-4 border-b border-border">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                placeholder="Buscar contacto o mensaje"
-                className="pl-9 h-10"
-              />
-            </div>
+            <SearchInputWithSpeech
+              value={q}
+              onChange={setQ}
+              placeholder="Buscar contacto o mensaje"
+              inputClassName="h-10"
+            />
           </div>
 
           <div className="flex-1 overflow-y-auto">

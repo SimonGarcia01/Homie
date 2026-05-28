@@ -5,6 +5,7 @@ import { ActivitiesModule } from '../activities/activities.module';
 import { Lead } from '../leads/entities/lead.entity';
 import { Opportunity } from '../opportunities/entities/opportunity.entity';
 import { OpportunitiesModule } from '../opportunities/opportunities.module';
+import { ProspectInquirySyncModule } from '../prospects/prospect-inquiry-sync.module';
 
 import { AgentAvailability } from './entities/agent-availability.entity';
 import { Visit } from './entities/visit.entity';
@@ -16,6 +17,7 @@ import { VisitsService } from './visits.service';
         TypeOrmModule.forFeature([Visit, AgentAvailability, Lead, Opportunity]),
         forwardRef(() => ActivitiesModule),
         OpportunitiesModule,
+        ProspectInquirySyncModule,
     ],
     controllers: [VisitsController],
     providers: [VisitsService],

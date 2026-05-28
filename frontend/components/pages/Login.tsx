@@ -13,6 +13,7 @@ import { AuthError, validateLoginForm, type LoginField } from "@/lib/auth-messag
 import { DEMO_LOGIN_ACCOUNTS } from "@/lib/demo-accounts";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { FixedThemeToggle } from "@/components/theme/FixedThemeToggle";
 
 const ROLE_ICONS = {
   admin: Shield,
@@ -99,6 +100,7 @@ export default function Login() {
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-background">
+      <FixedThemeToggle />
       <section className="flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <Link href="/" className="inline-flex items-center gap-2.5 mb-10 group">

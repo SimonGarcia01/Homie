@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, Sprout } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 const NAV_LINKS = [
   { href: "#para-arrendatarios", label: "Busco arriendo" },
@@ -35,6 +36,8 @@ export const Header = () => {
         </nav>
 
         <div className="flex items-center gap-2">
+          <ThemeToggle variant="pill" className="hidden md:inline-flex" />
+          <ThemeToggle variant="icon" className="md:hidden" />
           <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
             <Link href="/buscar">Buscar arriendo</Link>
           </Button>
@@ -67,6 +70,10 @@ export const Header = () => {
                   </a>
                 ))}
                 <hr className="border-border my-2" />
+                <div className="flex items-center justify-between gap-2 py-1">
+                  <span className="text-sm text-muted-foreground">Tema</span>
+                  <ThemeToggle variant="pill" />
+                </div>
                 <Link href="/buscar" onClick={() => setOpen(false)} className="font-medium text-accent">
                   Buscar arriendo
                 </Link>

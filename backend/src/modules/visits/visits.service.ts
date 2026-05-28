@@ -7,6 +7,8 @@ import { ActivitiesService } from '../activities/activities.service';
 import { Lead } from '../leads/entities/lead.entity';
 import { Opportunity } from '../opportunities/entities/opportunity.entity';
 import { OpportunitiesService } from '../opportunities/opportunities.service';
+import { ProspectInquiryStatus } from '../prospects/entities/prospect-inquiry.entity';
+import { ProspectInquirySyncService } from '../prospects/prospect-inquiry-sync.service';
 
 import { CreateVisitDto } from './dto/create-visit.dto';
 import { ScheduleVisitDto } from './dto/schedule-visit.dto';
@@ -43,6 +45,7 @@ export class VisitsService {
         private readonly opportunitiesRepo: Repository<Opportunity>,
         private readonly activitiesService: ActivitiesService,
         private readonly opportunitiesService: OpportunitiesService,
+        private readonly inquirySync: ProspectInquirySyncService,
     ) {}
 
     private toView(visit: Visit): VisitView {
@@ -150,6 +153,13 @@ export class VisitsService {
             scheduledAt: dto.scheduledAt,
             durationMin: dto.durationMin,
             notes: dto.notes,
+        }).then(async (view) => {
+            await this.inquirySync.syncByLead(
+                dto.leadId,
+                dto.propertyId,
+                ProspectInquiryStatus.VISIT_SCHEDULED,
+            );
+            return view;
         });
     }
 
@@ -161,6 +171,15 @@ export class VisitsService {
         if (dto.durationMin !== undefined) visit.durationMin = dto.durationMin;
         if (dto.notes !== undefined) visit.notes = dto.notes;
         await this.repository.save(visit);
+
+        if (dto.status === VisitStatus.COMPLETED && visit.opportunity?.leadId) {
+            await this.inquirySync.syncByLead(
+                visit.opportunity.leadId,
+                visit.propertyId,
+                ProspectInquiryStatus.COMPLETED,
+            );
+        }
+
         return this.toView(visit);
     }
 

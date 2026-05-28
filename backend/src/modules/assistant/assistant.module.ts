@@ -30,5 +30,6 @@ import { PropertyTools, ToolExecutor } from './tools/property.tools';
         CrmTools,
         ToolExecutor,
     ],
+    exports: [OpenAiService],
 })
 export class AssistantModule {}

@@ -7,6 +7,7 @@ import { Heart, Home, LogOut, Menu, Sprout, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { useProspectAuth } from "@/contexts/ProspectAuthContext";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -63,6 +64,8 @@ export function SeekerShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="flex items-center gap-2">
+            <ThemeToggle variant="pill" className="hidden sm:inline-flex" />
+            <ThemeToggle variant="icon" className="sm:hidden" />
             {!loading && prospect ? (
               <>
                 <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
@@ -105,6 +108,10 @@ export function SeekerShell({ children }: { children: React.ReactNode }) {
                     </Link>
                   ))}
                   <hr className="border-border my-2" />
+                  <div className="flex items-center justify-between gap-2 py-1">
+                    <span className="text-sm text-muted-foreground">Tema</span>
+                    <ThemeToggle variant="pill" />
+                  </div>
                   {prospect ? (
                     <>
                       <Link href="/mi-cuenta" onClick={() => setOpen(false)}>Mi cuenta</Link>

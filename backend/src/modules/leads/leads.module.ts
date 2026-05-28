@@ -6,6 +6,7 @@ import { ContactsModule } from '../contacts/contacts.module';
 import { OpportunitiesModule } from '../opportunities/opportunities.module';
 import { OpportunityProperty } from '../opportunities/entities/opportunity-property.entity';
 import { Opportunity } from '../opportunities/entities/opportunity.entity';
+import { ProspectInquirySyncModule } from '../prospects/prospect-inquiry-sync.module';
 
 import { Lead } from './entities/lead.entity';
 import { SearchPreference } from './entities/search-preference.entity';
@@ -19,6 +20,7 @@ import { LeadsService } from './leads.service';
         ContactsModule,
         forwardRef(() => OpportunitiesModule),
         forwardRef(() => ActivitiesModule),
+        ProspectInquirySyncModule,
     ],
     controllers: [LeadsController],
     providers: [LeadsService],
