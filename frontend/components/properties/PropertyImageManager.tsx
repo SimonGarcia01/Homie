@@ -22,6 +22,24 @@ type PropertyImageManagerProps = {
   onImagesChange?: (urls: string[]) => void;
 };
 
+function sortImages(rows: PropertyImage[]): PropertyImage[] {
+  return rows.slice().sort((a, b) => {
+    if (a.isCover !== b.isCover) return a.isCover ? -1 : 1;
+    return a.sortOrder - b.sortOrder;
+  });
+}
+
+function mergeImages(prev: PropertyImage[], incoming: PropertyImage[]): PropertyImage[] {
+  const byId = new Map<string, PropertyImage>();
+  for (const img of prev) byId.set(img.id, img);
+  for (const img of incoming) byId.set(img.id, img);
+  return sortImages(Array.from(byId.values()));
+}
+
+function toResolvedUrls(rows: PropertyImage[]): string[] {
+  return sortImages(rows).map((img) => resolveMediaUrl(img.url));
+}
+
 export function PropertyImageManager({
   propertyId,
   canManage = false,
@@ -36,27 +54,14 @@ export function PropertyImageManager({
   const [dragOver, setDragOver] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
-
-  const notifyUrls = useCallback(
-    (next: PropertyImage[]) => {
-      const urls = next
-        .slice()
-        .sort((a, b) => {
-          if (a.isCover !== b.isCover) return a.isCover ? -1 : 1;
-          return a.sortOrder - b.sortOrder;
-        })
-        .map((img) => resolveMediaUrl(img.url));
-      onImagesChange?.(urls);
-    },
-    [onImagesChange],
-  );
+  const onImagesChangeRef = useRef(onImagesChange);
+  onImagesChangeRef.current = onImagesChange;
 
   const loadImages = useCallback(async () => {
     setLoading(true);
     try {
       const rows = await api.listPropertyImages(propertyId);
       setImages(rows);
-      notifyUrls(rows);
     } catch (err) {
       toast({
         title: "No se pudieron cargar las fotos",
@@ -66,11 +71,17 @@ export function PropertyImageManager({
     } finally {
       setLoading(false);
     }
-  }, [propertyId, notifyUrls]);
+  }, [propertyId]);
 
   useEffect(() => {
+    setImages([]);
     void loadImages();
   }, [loadImages]);
+
+  useEffect(() => {
+    if (loading) return;
+    onImagesChangeRef.current?.(toResolvedUrls(images));
+  }, [images, loading]);
 
   useEffect(() => {
     if (focusUpload && sectionRef.current) {
@@ -111,11 +122,7 @@ export function PropertyImageManager({
         });
       }
       if (result.uploaded.length) {
-        setImages((prev) => {
-          const merged = [...prev, ...result.uploaded];
-          notifyUrls(merged);
-          return merged;
-        });
+        setImages((prev) => mergeImages(prev, result.uploaded));
         toast({
           title: result.uploaded.length === 1 ? "Foto agregada" : `${result.uploaded.length} fotos agregadas`,
           description: "La galería se actualizó.",
@@ -138,11 +145,7 @@ export function PropertyImageManager({
     setCoveringId(imageId);
     try {
       await api.setPropertyImageCover(propertyId, imageId);
-      setImages((prev) => {
-        const next = prev.map((img) => ({ ...img, isCover: img.id === imageId }));
-        notifyUrls(next);
-        return next;
-      });
+      setImages((prev) => prev.map((img) => ({ ...img, isCover: img.id === imageId })));
       toast({ title: "Portada actualizada" });
     } catch (err) {
       toast({
@@ -162,11 +165,7 @@ export function PropertyImageManager({
     setDeletingId(imageId);
     try {
       await api.deletePropertyImage(propertyId, imageId);
-      setImages((prev) => {
-        const next = prev.filter((img) => img.id !== imageId);
-        notifyUrls(next);
-        return next;
-      });
+      setImages((prev) => prev.filter((img) => img.id !== imageId));
       toast({ title: "Foto eliminada" });
     } catch (err) {
       toast({

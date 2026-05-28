@@ -4,7 +4,9 @@ import PDFDocument from 'pdfkit';
 import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 
 import { commercialStatusToEs, propertyTypeToEs, toPropertySummaryEs } from '../../common/domain-labels';
-import { PropertyCommercialStatus, PropertyExpenseCategory, PropertyPublicationStatus, PropertyType } from '../../common/enums';
+import { ActivityType, PropertyCommercialStatus, PropertyExpenseCategory, PropertyPublicationStatus, PropertyType } from '../../common/enums';
+
+import { ActivitiesService } from '../activities/activities.service';
 
 import { CreatePropertyExpenseDto } from './dto/create-property-expense.dto';
 import { CreatePropertyIncomeDto } from './dto/create-property-income.dto';
@@ -43,10 +45,11 @@ export class PropertiesService {
         @InjectRepository(PropertyExpense)
         private readonly expenseRepository: Repository<PropertyExpense>,
         private readonly dataSource: DataSource,
+        private readonly activitiesService: ActivitiesService,
     ) {}
 
-    async create(createDto: CreatePropertyDto, organizationId: string) {
-        return this.dataSource.transaction(async (manager) => {
+    async create(createDto: CreatePropertyDto, organizationId: string, userId: string) {
+        const property = await this.dataSource.transaction(async (manager) => {
             const property = manager.create(Property, {
                 organizationId,
                 ownerId: createDto.ownerId,
@@ -87,6 +90,14 @@ export class PropertiesService {
                 relations: { rentalDetail: true, location: true, images: true, feature: true },
             });
         });
+
+        await this.activitiesService.create(organizationId, userId, {
+            type: ActivityType.PROPERTY,
+            content: 'Propiedad creada',
+            propertyId: property.id,
+        });
+
+        return property;
     }
 
     async findAll(organizationId: string) {
@@ -680,7 +691,7 @@ export class PropertiesService {
     }
 
     async findPublicProperties(filter: PublicPropertyFilterDto) {
-        const { propertyType, minPrice, maxPrice, city, country, page = 1, limit = 12 } = filter;
+        const { propertyType, minPrice, maxPrice, city, country, organizationId, q, page = 1, limit = 12 } = filter;
         const skip = (page - 1) * limit;
 
         const queryBuilder = this.repository
@@ -689,6 +700,7 @@ export class PropertiesService {
             .leftJoinAndSelect('property.location', 'location')
             .leftJoinAndSelect('property.rentalDetail', 'rentalDetail')
             .leftJoinAndSelect('property.feature', 'feature')
+            .leftJoinAndSelect('property.organization', 'organization')
             .where('property.commercialStatus = :status', { status: PropertyCommercialStatus.AVAILABLE })
             .andWhere('property.publicationStatus = :pubStatus', { pubStatus: PropertyPublicationStatus.PUBLISHED })
             .andWhere('property.isVisible = :isVisible', { isVisible: true });
@@ -713,16 +725,26 @@ export class PropertiesService {
             queryBuilder.andWhere('location.country ILIKE :country', { country: `%${country}%` });
         }
 
+        if (organizationId) {
+            queryBuilder.andWhere('property.organizationId = :organizationId', { organizationId });
+        }
+
+        if (q?.trim()) {
+            const term = `%${q.trim()}%`;
+            queryBuilder.andWhere(
+                '(property.title ILIKE :term OR property.code ILIKE :term OR location.city ILIKE :term OR location.address ILIKE :term)',
+                { term },
+            );
+        }
+
         const [data, total] = await queryBuilder
             .orderBy('property.updatedAt', 'DESC')
             .skip(skip)
             .take(limit)
             .getManyAndCount();
 
-        const propertiesWithCover = data.map((property) => this.attachCover(property));
-
         return {
-            data: propertiesWithCover,
+            data: data.map((property) => this.mapPublicProperty(this.attachCover(property))),
             page,
             limit,
             total,
@@ -732,17 +754,18 @@ export class PropertiesService {
 
     async findPublicPropertyById(id: string) {
         const property = await this.repository.findOne({
-            where: { 
+            where: {
                 id,
                 commercialStatus: PropertyCommercialStatus.AVAILABLE,
                 publicationStatus: PropertyPublicationStatus.PUBLISHED,
                 isVisible: true,
             },
-            relations: { 
-                images: true, 
-                rentalDetail: true, 
+            relations: {
+                images: true,
+                rentalDetail: true,
                 location: true,
                 feature: true,
+                organization: true,
             },
         });
 
@@ -750,7 +773,75 @@ export class PropertiesService {
             throw new NotFoundException('Property not found or not available');
         }
 
-        return this.attachCover(property);
+        return this.mapPublicProperty(this.attachCover(property));
+    }
+
+    async findPublicOrganizations() {
+        const rows = await this.repository
+            .createQueryBuilder('property')
+            .innerJoin('property.organization', 'organization')
+            .select('organization.id', 'id')
+            .addSelect('organization.name', 'name')
+            .addSelect('organization.slug', 'slug')
+            .addSelect('COUNT(property.id)', 'propertyCount')
+            .where('property.commercialStatus = :status', { status: PropertyCommercialStatus.AVAILABLE })
+            .andWhere('property.publicationStatus = :pubStatus', {
+                pubStatus: PropertyPublicationStatus.PUBLISHED,
+            })
+            .andWhere('property.isVisible = :isVisible', { isVisible: true })
+            .groupBy('organization.id')
+            .addGroupBy('organization.name')
+            .addGroupBy('organization.slug')
+            .orderBy('organization.name', 'ASC')
+            .getRawMany<{ id: string; name: string; slug: string; propertyCount: string }>();
+
+        return rows.map((row) => ({
+            id: row.id,
+            name: row.name,
+            slug: row.slug,
+            propertyCount: Number(row.propertyCount),
+        }));
+    }
+
+    mapPublicProperty(property: Property & { coverImageUrl?: string | null }) {
+        const cover = property.coverImageUrl ?? property.images?.find((i) => i.isCover)?.imageUrl ?? property.images?.[0]?.imageUrl ?? null;
+
+        return {
+            id: property.id,
+            code: property.code,
+            title: property.title,
+            description: property.description,
+            propertyType: property.propertyType,
+            commercialStatus: property.commercialStatus,
+            location: {
+                country: property.location?.country ?? '',
+                city: property.location?.city ?? '',
+                address: property.location?.address,
+            },
+            feature: {
+                bedrooms: property.feature?.bedrooms ?? 0,
+                bathrooms: property.feature?.bathrooms ?? 0,
+                isFurnished: property.feature?.isFurnished ?? false,
+                petsAllowed: property.feature?.petsAllowed ?? false,
+            },
+            rentalDetail: {
+                monthlyRent: Number(property.rentalDetail?.monthlyRent ?? 0),
+                currency: property.rentalDetail?.currency ?? 'CLP',
+            },
+            organization: property.organization
+                ? {
+                      id: property.organization.id,
+                      name: property.organization.name,
+                      slug: property.organization.slug,
+                  }
+                : undefined,
+            images: (property.images ?? []).map((image) => ({
+                id: image.id,
+                imageUrl: image.imageUrl,
+                isCover: image.isCover,
+            })),
+            coverImageUrl: cover ?? undefined,
+        };
     }
 
     private attachCover(property: Property): Property & { coverImageUrl: string | null } {

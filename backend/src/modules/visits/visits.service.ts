@@ -2,10 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { ActivityType, VisitStatus } from '../../common/enums';
+import { ActivityType, OpportunityStatus, VisitStatus, VisitType } from '../../common/enums';
 import { ActivitiesService } from '../activities/activities.service';
+import { Lead } from '../leads/entities/lead.entity';
+import { Opportunity } from '../opportunities/entities/opportunity.entity';
+import { OpportunitiesService } from '../opportunities/opportunities.service';
+import { ProspectInquiryStatus } from '../prospects/entities/prospect-inquiry.entity';
+import { ProspectInquirySyncService } from '../prospects/prospect-inquiry-sync.service';
 
 import { CreateVisitDto } from './dto/create-visit.dto';
+import { ScheduleVisitDto } from './dto/schedule-visit.dto';
 import { UpdateVisitDto } from './dto/update-visit.dto';
 import { Visit } from './entities/visit.entity';
 
@@ -33,7 +39,13 @@ export class VisitsService {
     constructor(
         @InjectRepository(Visit)
         private readonly repository: Repository<Visit>,
+        @InjectRepository(Lead)
+        private readonly leadsRepo: Repository<Lead>,
+        @InjectRepository(Opportunity)
+        private readonly opportunitiesRepo: Repository<Opportunity>,
         private readonly activitiesService: ActivitiesService,
+        private readonly opportunitiesService: OpportunitiesService,
+        private readonly inquirySync: ProspectInquirySyncService,
     ) {}
 
     private toView(visit: Visit): VisitView {
@@ -109,6 +121,48 @@ export class VisitsService {
         return this.toView(full!);
     }
 
+    async scheduleFromLead(organizationId: string, agentUserId: string, dto: ScheduleVisitDto) {
+        const lead = await this.leadsRepo.findOne({ where: { id: dto.leadId, organizationId } });
+        if (!lead) throw new NotFoundException('Lead not found');
+
+        const existing = await this.opportunitiesRepo.find({
+            where: { organizationId, leadId: dto.leadId, status: OpportunityStatus.OPEN },
+            order: { createdAt: 'DESC' },
+            take: 1,
+        });
+        let opportunity = existing[0];
+
+        if (!opportunity) {
+            const created = await this.opportunitiesService.create(organizationId, agentUserId, {
+                leadId: dto.leadId,
+                propertyId: dto.propertyId,
+                stageKey: 'visita',
+            });
+            opportunity = await this.opportunitiesRepo.findOneOrFail({ where: { id: created.id } });
+        } else {
+            await this.opportunitiesService.linkProperty(organizationId, opportunity.id, {
+                propertyId: dto.propertyId,
+            });
+        }
+
+        return this.create(organizationId, agentUserId, {
+            opportunityId: opportunity.id,
+            propertyId: dto.propertyId,
+            contactId: lead.contactId,
+            visitType: dto.visitType ?? VisitType.IN_PERSON,
+            scheduledAt: dto.scheduledAt,
+            durationMin: dto.durationMin,
+            notes: dto.notes,
+        }).then(async (view) => {
+            await this.inquirySync.syncByLead(
+                dto.leadId,
+                dto.propertyId,
+                ProspectInquiryStatus.VISIT_SCHEDULED,
+            );
+            return view;
+        });
+    }
+
     async update(organizationId: string, id: string, dto: UpdateVisitDto) {
         const visit = await this.repository.findOne({ where: { id, organizationId }, relations: { contact: true, opportunity: true } });
         if (!visit) throw new NotFoundException('Visit not found');
@@ -117,6 +171,15 @@ export class VisitsService {
         if (dto.durationMin !== undefined) visit.durationMin = dto.durationMin;
         if (dto.notes !== undefined) visit.notes = dto.notes;
         await this.repository.save(visit);
+
+        if (dto.status === VisitStatus.COMPLETED && visit.opportunity?.leadId) {
+            await this.inquirySync.syncByLead(
+                visit.opportunity.leadId,
+                visit.propertyId,
+                ProspectInquiryStatus.COMPLETED,
+            );
+        }
+
         return this.toView(visit);
     }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { MessageSquare, RotateCcw, Send, Sparkles, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -14,11 +14,14 @@ import {
   type AssistantPropertyPreview,
 } from "@/lib/api/assistant";
 import { translateAuthError } from "@/lib/auth-messages";
+import { useAssistantBridge } from "@/contexts/AssistantBridgeContext";
 import { AssistantMessageBubble } from "@/components/assistant/AssistantMessageBubble";
+import { SpeechToTextButton } from "@/components/speech/SpeechToTextButton";
 
 const SUGGESTIONS = [
   "¿Cuántas casas disponibles tengo?",
   "Resumen del portafolio",
+  "Resume el hilo con el último lead contactado",
   "Agrega un depto en Providencia, 850 mil, de María González",
 ];
 
@@ -27,6 +30,7 @@ function isApiError(value: unknown): value is { error: string; status?: number }
 }
 
 export function AssistantWidget() {
+  const { isOpenRequest, consumePrompt, consumeOpenRequest } = useAssistantBridge();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
   const [sessionId, setSessionId] = useState(() => getAssistantSessionId());
@@ -93,6 +97,18 @@ export function AssistantWidget() {
     },
     [loading, scrollToBottom, sessionId],
   );
+
+  useEffect(() => {
+    if (!isOpenRequest) return;
+    setOpen(true);
+    consumeOpenRequest();
+    const prompt = consumePrompt();
+    if (prompt) {
+      window.setTimeout(() => {
+        void sendMessage(prompt);
+      }, 150);
+    }
+  }, [isOpenRequest, consumeOpenRequest, consumePrompt, sendMessage]);
 
   return (
     <>
@@ -196,7 +212,7 @@ export function AssistantWidget() {
 
           <div className="border-t border-border p-4">
             <form
-              className="flex gap-2"
+              className="flex gap-2 items-end"
               onSubmit={(e) => {
                 e.preventDefault();
                 void sendMessage(input);
@@ -206,7 +222,7 @@ export function AssistantWidget() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Pregunta sobre tus propiedades…"
-                className="min-h-[44px] max-h-28 resize-none rounded-xl"
+                className="min-h-[44px] max-h-28 resize-none rounded-xl flex-1"
                 rows={1}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -216,6 +232,7 @@ export function AssistantWidget() {
                 }}
                 disabled={loading}
               />
+              <SpeechToTextButton value={input} onChange={setInput} disabled={loading} />
               <Button type="submit" variant="hero" size="icon" className="h-11 w-11 shrink-0 rounded-xl" disabled={loading || !input.trim()}>
                 <Send className="h-4 w-4" />
               </Button>

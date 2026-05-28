@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
-import { BarChart3, Download, TrendingUp, TrendingDown, Wallet, Home as HomeIcon, Sprout, Calendar, AlertTriangle } from "lucide-react";
+import { BarChart3, Download, TrendingUp, TrendingDown, Wallet, Home as HomeIcon, Sprout, Calendar, AlertTriangle, Loader2 } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import { api } from "@/lib/mock/api";
+import type { Property } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 
 type Dash = Awaited<ReturnType<typeof api.getDashboard>>;
 
@@ -17,8 +22,37 @@ const STATUS_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "hsl(var(--s
 
 export default function Reports() {
   const [dash, setDash] = useState<Dash | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => { api.getDashboard().then(setDash); }, []);
+
+  async function openExportDialog() {
+    setExportOpen(true);
+    const props = await api.listProperties();
+    setProperties(props);
+    if (props.length > 0) setSelectedPropertyId(props[0].id);
+  }
+
+  async function handleExportPdf() {
+    if (!selectedPropertyId) return;
+    setExporting(true);
+    try {
+      await api.downloadPropertyReport(selectedPropertyId);
+      toast({ title: "PDF descargado", description: "El reporte se guardó en tu dispositivo." });
+      setExportOpen(false);
+    } catch (err) {
+      toast({
+        title: "No se pudo exportar",
+        description: err instanceof Error ? err.message : "Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const statusData = dash ? [
     { name: "Disponibles", value: dash.byStatus.disponible },
@@ -37,9 +71,42 @@ export default function Reports() {
         </div>
         <div className="flex gap-2">
           <Button variant="soft" size="lg"><Calendar className="h-4 w-4" /> Último mes</Button>
-          <Button variant="hero" size="lg"><Download className="h-4 w-4" /> Exportar PDF</Button>
+          <Button variant="hero" size="lg" onClick={() => void openExportDialog()}>
+            <Download className="h-4 w-4" /> Exportar PDF
+          </Button>
         </div>
       </header>
+
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">Exportar reporte PDF</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 mt-2">
+            <div className="space-y-2">
+              <Label>Propiedad</Label>
+              <Select value={selectedPropertyId || "__none__"} onValueChange={(v) => setSelectedPropertyId(v === "__none__" ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar propiedad" />
+                </SelectTrigger>
+                <SelectContent>
+                  {properties.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{p.title}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setExportOpen(false)} disabled={exporting}>
+                Cancelar
+              </Button>
+              <Button variant="hero" onClick={() => void handleExportPdf()} disabled={exporting || !selectedPropertyId}>
+                {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Descargar PDF"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* KPI summary */}
       <section className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -213,9 +280,9 @@ function Kpi({ label, value, icon: Icon, tone }: { label: string; value: React.R
         <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
         <span className={cn("flex h-8 w-8 items-center justify-center rounded-xl", cls)}><Icon className="h-4 w-4" /></span>
       </div>
-      <p className="font-display text-2xl font-semibold tabular-nums mt-2">
+      <div className="font-display text-2xl font-semibold tabular-nums mt-2">
         {value === undefined || value === null ? <Skeleton className="h-7 w-16" /> : value}
-      </p>
+      </div>
     </div>
   );
 }

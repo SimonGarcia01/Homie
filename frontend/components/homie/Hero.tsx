@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { LeafBackdrop } from "./Decor";
-import { ArrowRight, Home, Sprout, FileText, CalendarCheck, Wallet, ShieldCheck, MapPin } from "lucide-react";
+import {
+  ArrowRight, Home, Sprout, ShieldCheck, Search, Building2,
+} from "lucide-react";
 
 export const Hero = () => {
   return (
@@ -10,49 +12,72 @@ export const Hero = () => {
 
       <div className="container relative z-10 pt-10 pb-24 md:pt-16 md:pb-32">
         <div className="grid lg:grid-cols-12 gap-12 items-center">
-          {/* Copy */}
           <div className="lg:col-span-6 animate-fade-in">
             <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 backdrop-blur px-3.5 py-1.5 text-xs font-medium text-muted-foreground shadow-soft">
               <Sprout className="h-3.5 w-3.5 text-primary" />
-              Cultivado para brokers y administradores
+              Para quien busca arriendo y para quien lo gestiona
             </span>
 
             <h1 className="mt-6 font-display text-5xl md:text-6xl lg:text-7xl font-medium leading-[1.02] text-foreground">
-              Un hogar para
-              <span className="block italic text-primary">gestionar tus arriendos.</span>
+              Tu próximo hogar
+              <span className="block italic text-primary">y tu cartera, en un solo lugar.</span>
             </h1>
 
             <p className="mt-6 max-w-xl text-lg text-muted-foreground leading-relaxed">
-              Homie reúne propiedades, propietarios, interesados, visitas, documentos y finanzas en un espacio cálido, claro y diseñado para que los brokers trabajen con calma.
+              Homie conecta a arrendatarios con propiedades de distintos brokers, y les da a otros brokers un espacio cálido para operar leads, visitas, documentos y finanzas.
             </p>
 
-            <div className="mt-9 flex flex-wrap items-center gap-3">
-              <Button asChild variant="hero" size="xl" className="group">
-                <Link href="/login">
-                  Entrar a Homie
-                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+            <div className="mt-9 grid grid-cols-1 md:grid-cols-2 gap-3 max-w-xl">
+              <Button
+                asChild
+                variant="hero"
+                size="xl"
+                className="group h-auto py-4 whitespace-normal rounded-2xl md:rounded-full"
+              >
+                <Link href="/buscar" className="flex w-full min-w-0 flex-col items-stretch gap-1.5">
+                  <span className="flex items-center gap-2 w-full min-w-0">
+                    <Search className="h-4 w-4 shrink-0" />
+                    <span className="font-semibold">Buscar arriendo</span>
+                    <ArrowRight className="h-4 w-4 ml-auto shrink-0 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                  <span className="text-xs font-normal opacity-80 leading-snug text-left w-full">
+                    Explora sin cuenta · Regístrate para visitas
+                  </span>
                 </Link>
               </Button>
-              <Button asChild variant="soft" size="xl">
-                <Link href="/catalogo">Ver catálogo</Link>
+              <Button
+                asChild
+                variant="soft"
+                size="xl"
+                className="group h-auto py-4 whitespace-normal rounded-2xl md:rounded-full"
+              >
+                <Link href="/login" className="flex w-full min-w-0 flex-col items-stretch gap-1.5">
+                  <span className="flex items-center gap-2 w-full min-w-0">
+                    <Building2 className="h-4 w-4 shrink-0" />
+                    <span className="font-semibold">Soy broker</span>
+                    <ArrowRight className="h-4 w-4 ml-auto shrink-0 transition-transform group-hover:translate-x-0.5" />
+                  </span>
+                  <span className="text-xs font-normal opacity-80 leading-snug text-left w-full">
+                    CRM para tu operación diaria
+                  </span>
+                </Link>
               </Button>
             </div>
 
-            <div className="mt-10 flex items-center gap-6 text-sm text-muted-foreground">
+            <div className="mt-10 flex flex-wrap items-center gap-6 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <ShieldCheck className="h-4 w-4 text-primary" />
-                Datos protegidos
+                Multi-broker
               </div>
-              <div className="hidden sm:flex items-center gap-2">
-                <Sprout className="h-4 w-4 text-secondary" />
-                Sin contratos rígidos
+              <div className="flex items-center gap-2">
+                <Home className="h-4 w-4 text-secondary" />
+                Catálogo público
               </div>
             </div>
           </div>
 
-          {/* Dashboard preview */}
           <div className="lg:col-span-6 animate-scale-in">
-            <DashboardPreview />
+            <DualPreview />
           </div>
         </div>
       </div>
@@ -60,80 +85,64 @@ export const Hero = () => {
   );
 };
 
-const DashboardPreview = () => {
+const DualPreview = () => {
   return (
-    <div className="relative">
-      {/* floating accent card */}
-      <div className="absolute -top-6 -left-4 hidden md:flex items-center gap-3 rounded-2xl bg-surface px-4 py-3 shadow-card border border-border z-10">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-success/15 text-success">
-          <CalendarCheck className="h-4 w-4" />
-        </span>
-        <div>
-          <div className="text-xs text-muted-foreground">Próxima visita</div>
-          <div className="text-sm font-medium text-foreground">Mañana, 10:30 — Calle Olivos 24</div>
+    <div className="relative grid gap-4">
+      {/* B2C preview card */}
+      <div className="rounded-3xl border border-border bg-surface/95 backdrop-blur p-5 shadow-soft">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-xs font-medium text-accent uppercase tracking-wide">Para arrendatarios</span>
+          <span className="text-xs text-muted-foreground">/buscar</span>
         </div>
-      </div>
-
-      <div className="absolute -bottom-6 -right-4 hidden md:flex items-center gap-3 rounded-2xl bg-surface px-4 py-3 shadow-card border border-border z-10">
-        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-accent">
-          <Wallet className="h-4 w-4" />
-        </span>
-        <div>
-          <div className="text-xs text-muted-foreground">Balance del mes</div>
-          <div className="text-sm font-medium text-foreground">+ $4.820.000 cobrados</div>
-        </div>
-      </div>
-
-      <div className="rounded-3xl border border-border bg-surface/95 backdrop-blur p-5 shadow-leaf">
-        {/* top bar */}
-        <div className="flex items-center justify-between mb-5">
-          <div className="flex items-center gap-2">
-            <div className="h-2.5 w-2.5 rounded-full bg-accent/60"/>
-            <div className="h-2.5 w-2.5 rounded-full bg-warning/60"/>
-            <div className="h-2.5 w-2.5 rounded-full bg-success/60"/>
-          </div>
-          <div className="text-xs text-muted-foreground font-medium">homie · vista general</div>
-        </div>
-
-        {/* greeting */}
-        <div className="rounded-2xl bg-gradient-leaf text-primary-foreground p-5 mb-4">
-          <div className="text-xs opacity-80">Miércoles, 29 de abril</div>
-          <h3 className="font-display text-2xl mt-1">Buenos días, tu cartera está en orden.</h3>
-          <p className="text-sm opacity-90 mt-1">Tres oportunidades necesitan seguimiento hoy.</p>
-        </div>
-
-        {/* stats */}
-        <div className="grid grid-cols-3 gap-3 mb-4">
+        <div className="grid grid-cols-2 gap-3">
           {[
-            { label: "Propiedades", value: "24", icon: Home, tone: "bg-primary/10 text-primary" },
-            { label: "Oportunidades", value: "11", icon: Sprout, tone: "bg-secondary/15 text-secondary" },
-            { label: "Documentos", value: "6", icon: FileText, tone: "bg-accent/15 text-accent" },
-          ].map((s) => (
-            <div key={s.label} className="rounded-2xl bg-surface-muted/60 border border-border p-3">
-              <span className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${s.tone}`}>
-                <s.icon className="h-4 w-4" />
-              </span>
-              <div className="mt-2 font-display text-2xl text-foreground">{s.value}</div>
-              <div className="text-xs text-muted-foreground">{s.label}</div>
+            {
+              title: "Depto. Las Acacias",
+              city: "Providencia",
+              price: "$650.000",
+              image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=600&q=80",
+            },
+            {
+              title: "Casa Olivos 24",
+              city: "Ñuñoa",
+              price: "$890.000",
+              image: "https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=600&q=80",
+            },
+          ].map((p) => (
+            <div key={p.title} className="rounded-2xl bg-muted/60 border border-border overflow-hidden">
+              <div className="aspect-[4/3] bg-primary/10 overflow-hidden">
+                <img src={p.image} alt={p.title} className="h-full w-full object-cover" loading="lazy" />
+              </div>
+              <div className="p-2.5">
+                <p className="text-xs font-medium truncate">{p.title}</p>
+                <p className="text-[10px] text-muted-foreground">{p.city}</p>
+                <p className="text-xs text-primary font-semibold mt-0.5">{p.price}</p>
+              </div>
             </div>
           ))}
         </div>
+        <p className="mt-3 text-xs text-muted-foreground">Guarda favoritos · Pide visitas · Sigue tus solicitudes</p>
+      </div>
 
-        {/* property rows */}
-        <div className="space-y-2">
+      {/* B2B preview card — overlaps slightly */}
+      <div className="rounded-3xl border border-border bg-surface/95 backdrop-blur p-5 shadow-leaf md:-mt-2 md:ml-8">
+        <div className="flex items-center justify-between mb-4">
+          <span className="text-xs font-medium text-primary uppercase tracking-wide">Para brokers</span>
+          <span className="text-xs text-muted-foreground">/app</span>
+        </div>
+        <div className="rounded-2xl bg-gradient-leaf text-primary-foreground p-4 mb-3">
+          <p className="text-xs opacity-80">Vista general</p>
+          <p className="font-display text-lg mt-0.5">3 leads nuevos desde el portal</p>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
           {[
-            { name: "Casa Olivos 24", status: "Disponible", tone: "bg-success/15 text-success" },
-            { name: "Depto. Las Acacias 502", status: "En visita", tone: "bg-warning/15 text-warning" },
-            { name: "Loft Jardines 7", status: "Arrendada", tone: "bg-primary/10 text-primary" },
-          ].map((p) => (
-            <div key={p.name} className="flex items-center justify-between rounded-xl bg-surface-muted/40 border border-border px-3 py-2.5">
-              <div className="flex items-center gap-3">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-surface text-muted-foreground border border-border">
-                  <MapPin className="h-3.5 w-3.5"/>
-                </span>
-                <span className="text-sm text-foreground">{p.name}</span>
-              </div>
-              <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${p.tone}`}>{p.status}</span>
+            { label: "Propiedades", value: "24" },
+            { label: "Leads", value: "11" },
+            { label: "Visitas", value: "4" },
+          ].map((s) => (
+            <div key={s.label} className="rounded-xl bg-surface-muted/60 border border-border p-2 text-center">
+              <div className="font-display text-lg">{s.value}</div>
+              <div className="text-[10px] text-muted-foreground">{s.label}</div>
             </div>
           ))}
         </div>

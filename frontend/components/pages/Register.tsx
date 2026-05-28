@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { AuthError, validateRegisterForm, type RegisterField } from "@/lib/auth-messages";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { FixedThemeToggle } from "@/components/theme/FixedThemeToggle";
 
 function FieldHint({ id, message }: { id: string; message: string }) {
   return (
@@ -86,6 +87,7 @@ export default function Register() {
 
   return (
     <main className="min-h-screen grid lg:grid-cols-2 bg-background">
+      <FixedThemeToggle />
       <section className="flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <Link href="/" className="inline-flex items-center gap-2.5 mb-10 group">
@@ -139,7 +141,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="organizationName">Nombre del corretaje o equipo</Label>
+              <Label htmlFor="organizationName">Nombre de tu broker o equipo</Label>
               <Input
                 id="organizationName"
                 value={organizationName}

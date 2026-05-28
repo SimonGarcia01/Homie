@@ -24,7 +24,7 @@ export class LeadsController {
 
     @Patch(':id')
     update(@Req() req: RequestWithUser, @Param('id') id: string, @Body() dto: UpdateLeadDto) {
-        return this.service.update(req.user.organizationId, id, dto);
+        return this.service.update(req.user.organizationId, req.user.id, id, dto);
     }
 
     @Post(':id/convert')

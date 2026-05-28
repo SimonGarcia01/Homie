@@ -1,14 +1,12 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsEnum, IsOptional, IsString } from 'class-validator';
+
+import { EvaluationRecommendation } from '../../../common/enums';
 
 export class CreateRentalEvaluationDto {
-    @ApiProperty({ required: false })
-    @IsOptional()
-    @IsUUID()
-    organizationId?: string;
+    @IsEnum(EvaluationRecommendation)
+    recommendation!: EvaluationRecommendation;
 
-    @ApiProperty({ required: false })
     @IsOptional()
     @IsString()
-    name?: string;
+    notes?: string;
 }

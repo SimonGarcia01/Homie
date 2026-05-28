@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/c
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { CreateVisitDto } from './dto/create-visit.dto';
+import { ScheduleVisitDto } from './dto/schedule-visit.dto';
 import { UpdateVisitDto } from './dto/update-visit.dto';
 import { VisitsService } from './visits.service';
 
@@ -26,6 +27,11 @@ export class VisitsController {
     @Post()
     create(@Req() req: RequestWithUser, @Body() dto: CreateVisitDto) {
         return this.service.create(req.user.organizationId, req.user.id, dto);
+    }
+
+    @Post('schedule')
+    schedule(@Req() req: RequestWithUser, @Body() dto: ScheduleVisitDto) {
+        return this.service.scheduleFromLead(req.user.organizationId, req.user.id, dto);
     }
 
     @Patch(':id')

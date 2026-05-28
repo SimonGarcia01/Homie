@@ -24,7 +24,7 @@ export class PropertiesController {
 
     @Post()
     create(@Body() createDto: CreatePropertyDto, @Req() req: RequestWithOrg) {
-        return this.service.create(createDto, req.user.organizationId);
+        return this.service.create(createDto, req.user.organizationId, req.user.id);
     }
 
     @Get()

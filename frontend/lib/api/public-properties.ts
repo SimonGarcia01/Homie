@@ -12,6 +12,7 @@ export type PublicProperty = {
   location: { country: string; city: string; address?: string };
   feature: { bedrooms: number; bathrooms: number; isFurnished: boolean; petsAllowed: boolean };
   rentalDetail: { monthlyRent: number; currency: string };
+  organization?: { id: string; name: string; slug: string };
   images: { id: string; imageUrl: string; isCover: boolean }[];
   coverImageUrl?: string;
 };
@@ -41,17 +42,27 @@ async function parseError(res: Response): Promise<string> {
   return text;
 }
 
+export async function listPublicOrganizations(): Promise<
+  { id: string; name: string; slug: string; propertyCount: number }[] | ApiError
+> {
+  const res = await fetch(buildUrl("/api/public/properties/meta/organizations"));
+  if (!res.ok) return { error: await parseError(res), status: res.status };
+  return res.json() as Promise<{ id: string; name: string; slug: string; propertyCount: number }[]>;
+}
+
 export async function listPublicProperties(params?: {
   page?: number;
   limit?: number;
   city?: string;
   q?: string;
+  organizationId?: string;
 }): Promise<PublicPropertyListResponse | ApiError> {
   const search = new URLSearchParams();
   if (params?.page) search.set("page", String(params.page));
   if (params?.limit) search.set("limit", String(params.limit));
   if (params?.city) search.set("city", params.city);
   if (params?.q) search.set("q", params.q);
+  if (params?.organizationId) search.set("organizationId", params.organizationId);
   const qs = search.toString();
   const res = await fetch(buildUrl(`/api/public/properties${qs ? `?${qs}` : ""}`));
   if (!res.ok) return { error: await parseError(res), status: res.status };

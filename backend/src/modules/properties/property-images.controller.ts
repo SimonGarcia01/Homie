@@ -28,7 +28,7 @@ type IncomingFile = {
     buffer: Buffer;
 };
 
-type RequestWithOrg = { user: { organizationId: string } };
+type RequestWithOrg = { user: { id: string; organizationId: string } };
 
 @ApiTags('property-images')
 @ApiBearerAuth()
@@ -67,7 +67,7 @@ export class PropertyImagesController {
         @UploadedFiles() files: IncomingFile[],
         @Req() req: RequestWithOrg,
     ) {
-        return this.service.upload(propertyId, req.user.organizationId, files);
+        return this.service.upload(propertyId, req.user.organizationId, req.user.id, files);
     }
 
     @Delete(':imageId')

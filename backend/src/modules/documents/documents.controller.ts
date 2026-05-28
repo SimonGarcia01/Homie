@@ -52,8 +52,17 @@ export class DocumentsController {
         @Body('leadId') leadId?: string,
         @Body('ownerId') ownerId?: string,
         @Body('kind') kind?: string,
+        @Body('applicationId') applicationId?: string,
+        @Body('checklistItemId') checklistItemId?: string,
     ) {
-        return this.service.upload(req.user.id, file, { propertyId, leadId, ownerId, kind });
+        return this.service.upload(req.user.id, file, {
+            propertyId,
+            leadId,
+            ownerId,
+            kind,
+            applicationId,
+            checklistItemId,
+        });
     }
 
     @Get(':id/download')

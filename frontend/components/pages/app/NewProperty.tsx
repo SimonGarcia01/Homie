@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Plus, Sprout, UserPlus } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Sparkles, Sprout, UserPlus } from "lucide-react";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { api } from "@/lib/mock/api";
+import { generatePropertyDescription, getRentSuggestion, isAiError, type RentSuggestion } from "@/lib/api/ai";
 import type { Owner, Property, PropertyType, PropertyStatus, PublishStatus } from "@/lib/mock/db";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
@@ -39,6 +40,8 @@ export default function NewProperty() {
   const [ownersLoading, setOwnersLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [generatingDesc, setGeneratingDesc] = useState(false);
+  const [rentSuggestion, setRentSuggestion] = useState<RentSuggestion | null>(null);
 
   const [ownerDialogOpen, setOwnerDialogOpen] = useState(false);
   const [ownerForm, setOwnerForm] = useState<OwnerForm>(emptyOwnerForm);
@@ -74,6 +77,19 @@ export default function NewProperty() {
   useEffect(() => {
     void loadOwners();
   }, [loadOwners]);
+
+  // Debounced rent suggestion
+  useEffect(() => {
+    if (!form.type || !form.city) { setRentSuggestion(null); return; }
+    const timer = setTimeout(async () => {
+      try {
+        const result = await getRentSuggestion({ tipo: form.type, ciudad: form.city, dormitorios: form.bedrooms, banos: form.bathrooms });
+        if (!isAiError(result) && result !== null) setRentSuggestion(result);
+        else setRentSuggestion(null);
+      } catch { setRentSuggestion(null); }
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [form.type, form.city, form.bedrooms, form.bathrooms]);
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -176,7 +192,41 @@ export default function NewProperty() {
           <Field label="Título" id="title" error={errors.title}>
             <Input id="title" value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Ej: Departamento luminoso en Providencia" />
           </Field>
-          <Field label="Descripción" id="description">
+            <Field
+            label="Descripción"
+            id="description"
+            action={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto p-0 text-xs gap-1 text-primary"
+                disabled={generatingDesc || !form.title}
+                onClick={async () => {
+                  setGeneratingDesc(true);
+                  try {
+                    const result = await generatePropertyDescription({
+                      title: form.title,
+                      type: form.type,
+                      city: form.city,
+                      bedrooms: form.bedrooms,
+                      bathrooms: form.bathrooms,
+                      rent: form.rent,
+                      currency: form.currency,
+                    });
+                    if (!isAiError(result)) {
+                      set("description", result.description);
+                    }
+                  } finally {
+                    setGeneratingDesc(false);
+                  }
+                }}
+              >
+                {generatingDesc ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+                Sugerir
+              </Button>
+            }
+          >
             <Textarea id="description" rows={3} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="Cuéntanos qué hace especial esta propiedad…" />
           </Field>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -252,6 +302,11 @@ export default function NewProperty() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <Field label="Canon" id="rent" error={errors.rent}>
               <Input id="rent" type="number" min={0} value={form.rent || ""} onChange={(e) => set("rent", Number(e.target.value))} />
+              {rentSuggestion && (
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Comparables: {new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(rentSuggestion.min)} – {new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", maximumFractionDigits: 0 }).format(rentSuggestion.max)} ({rentSuggestion.basedOn} propiedad{rentSuggestion.basedOn !== 1 ? "es" : ""})
+                </p>
+              )}
             </Field>
             <Field label="Moneda" id="currency">
               <Select value={form.currency} onValueChange={(v) => set("currency", v as Property["currency"])}>

@@ -21,6 +21,7 @@ type AuthCtx = {
   login: (email: string, password: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
   logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
   hasRole: (...roles: Role[]) => boolean;
 };
 
@@ -52,12 +53,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    const u = await api.me();
+    setUser(u);
+  }, []);
+
   const hasRole = useCallback(
     (...roles: Role[]) => (user ? roles.includes(user.role) : false),
     [user],
   );
 
-  return <Ctx.Provider value={{ user, loading, login, register, logout, hasRole }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ user, loading, login, register, logout, refreshUser, hasRole }}>{children}</Ctx.Provider>;
 }
 
 export function useAuth() {

@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
@@ -10,6 +10,7 @@ import { Role } from '../roles/entities/role.entity';
 import { UsersService } from '../users/users.service';
 
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class AuthService {
@@ -37,6 +38,7 @@ export class AuthService {
             email: user.email,
             organizationId: user.organizationId,
             role: role?.name ?? 'agent',
+            accountType: 'staff',
         });
 
         await this.usersService.markLogin(user.id);
@@ -84,6 +86,7 @@ export class AuthService {
             email: user.email,
             organizationId: user.organizationId,
             role: UserRoleName.ADMIN,
+            accountType: 'staff',
         });
 
         await this.usersService.markLogin(user.id);
@@ -116,6 +119,48 @@ export class AuthService {
             organizationId: user.organizationId,
             role: role?.name ?? 'agent',
             isActive: user.isActive,
+        };
+    }
+
+    async updateProfile(userId: string, dto: UpdateProfileDto) {
+        const user = await this.usersService.findByEmailForAuth(
+            (await this.usersService.findOne(userId)).email,
+        );
+        if (!user) throw new UnauthorizedException('User not found');
+
+        if (dto.password) {
+            if (!dto.currentPassword) {
+                throw new BadRequestException('Current password is required to set a new password');
+            }
+            const valid = await bcrypt.compare(dto.currentPassword, user.passwordHash);
+            if (!valid) {
+                throw new UnauthorizedException('Current password is incorrect');
+            }
+        }
+
+        if (dto.email && dto.email.toLowerCase() !== user.email.toLowerCase()) {
+            const existing = await this.usersService.findByEmailForAuth(dto.email);
+            if (existing && existing.id !== userId) {
+                throw new ConflictException('Email already registered');
+            }
+        }
+
+        const updated = await this.usersService.update(userId, {
+            firstName: dto.firstName?.trim() ?? user.firstName,
+            lastName: dto.lastName?.trim() ?? user.lastName,
+            email: dto.email?.toLowerCase() ?? user.email,
+            password: dto.password,
+        });
+
+        const role = await this.rolesRepository.findOne({ where: { id: updated.roleId } });
+        return {
+            id: updated.id,
+            email: updated.email,
+            firstName: updated.firstName,
+            lastName: updated.lastName,
+            organizationId: updated.organizationId,
+            role: role?.name ?? 'agent',
+            isActive: updated.isActive,
         };
     }
 

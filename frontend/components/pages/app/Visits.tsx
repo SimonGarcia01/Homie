@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Calendar as CalIcon, MapPin, Clock, ChevronDown, User as UserIcon, Mail, Phone, Plus, CheckCircle2, XCircle, CalendarDays } from "lucide-react";
+import { Calendar as CalIcon, MapPin, Clock, ChevronDown, User as UserIcon, Mail, Phone, Plus, CheckCircle2, XCircle, CalendarDays, UserCheck, Loader2, Sparkles, FileText as FileTextIcon } from "lucide-react";
+import { toast } from "@/hooks/use-toast";
 import { AppShell } from "@/components/app/AppShell";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -10,6 +11,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { api } from "@/lib/mock/api";
 import type { Lead, Property, Visit } from "@/lib/mock/db";
 import { cn } from "@/lib/utils";
+import { ScheduleVisitDialog } from "@/components/visits/ScheduleVisitDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { getVisitBrief, isAiError, type VisitBrief } from "@/lib/api/ai";
 
 type VisitRow = Visit & { property?: Property; lead?: Lead };
 
@@ -31,9 +35,48 @@ export default function Visits() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Date | undefined>(new Date());
   const [openId, setOpenId] = useState<string | null>(null);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [contactingLeadId, setContactingLeadId] = useState<string | null>(null);
+  const [briefVisitId, setBriefVisitId] = useState<string | null>(null);
+  const [brief, setBrief] = useState<VisitBrief | null>(null);
+  const [briefLoading, setBriefLoading] = useState(false);
+
+  async function openBrief(visitId: string) {
+    setBriefVisitId(visitId);
+    setBrief(null);
+    setBriefLoading(true);
+    try {
+      const result = await getVisitBrief(visitId);
+      if (!isAiError(result)) setBrief(result);
+      else toast({ title: "No se pudo cargar el briefing", description: result.error, variant: "destructive" });
+    } catch {
+      toast({ title: "Error al cargar briefing", variant: "destructive" });
+    } finally {
+      setBriefLoading(false);
+    }
+  }
+
+  const refreshVisits = () => api.listVisits().then(setItems);
+
+  async function handleContactLead(leadId: string) {
+    setContactingLeadId(leadId);
+    try {
+      await api.contactLead(leadId);
+      await refreshVisits();
+      toast({ title: "Lead contactado", description: "El interesado quedó marcado como contactado." });
+    } catch (err) {
+      toast({
+        title: "No se pudo actualizar",
+        description: err instanceof Error ? err.message : "Intenta de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setContactingLeadId(null);
+    }
+  }
 
   useEffect(() => {
-    api.listVisits().then((v) => { setItems(v); setLoading(false); });
+    refreshVisits().finally(() => setLoading(false));
   }, []);
 
   const datesWithVisits = useMemo(() => items.map((v) => new Date(v.date)), [items]);
@@ -63,7 +106,9 @@ export default function Visits() {
           <StatPill label="Próximas" value={upcoming} tone="primary" />
           <StatPill label="Realizadas" value={done} tone="secondary" />
           <StatPill label="Canceladas" value={cancel} tone="muted" />
-          <Button variant="hero" size="lg"><Plus className="h-4 w-4" /> Agendar visita</Button>
+          <Button variant="hero" size="lg" onClick={() => setScheduleOpen(true)}>
+            <Plus className="h-4 w-4" /> Agendar visita
+          </Button>
         </div>
       </header>
 
@@ -160,13 +205,47 @@ export default function Visits() {
                             </div>
                           )}
                           <div className="md:col-span-2 flex flex-wrap gap-2 pt-1">
-                            <Button size="sm" variant="hero" onClick={async () => { await api.updateVisit(v.id, { status: "realizada" }); setItems(await api.listVisits()); }}>
+                            {v.leadId && v.lead?.stage === "nuevo" && (
+                              <Button
+                                size="sm"
+                                variant="soft"
+                                disabled={contactingLeadId === v.leadId}
+                                onClick={() => void handleContactLead(v.leadId!)}
+                              >
+                                {contactingLeadId === v.leadId ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <UserCheck className="h-4 w-4" />
+                                )}
+                                Marcar como contactado
+                              </Button>
+                            )}
+                            {v.lead?.stage === "contactado" && (
+                              <Button size="sm" variant="ghost" disabled className="opacity-70">
+                                <UserCheck className="h-4 w-4" /> Contactado
+                              </Button>
+                            )}
+                            <Button size="sm" variant="hero" onClick={async () => { await api.updateVisit(v.id, { status: "realizada" }); await refreshVisits(); }}>
                               <CheckCircle2 className="h-4 w-4" /> Marcar como realizada
                             </Button>
-                            <Button size="sm" variant="soft">Reprogramar</Button>
-                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={async () => { await api.updateVisit(v.id, { status: "cancelada" }); setItems(await api.listVisits()); }}>
+                            <Button
+                              size="sm"
+                              variant="soft"
+                              onClick={() => {
+                                setSelected(new Date(v.date));
+                                setScheduleOpen(true);
+                              }}
+                            >
+                              Reprogramar
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={async () => { await api.updateVisit(v.id, { status: "cancelada" }); await refreshVisits(); }}>
                               <XCircle className="h-4 w-4" /> Cancelar
                             </Button>
+                            {v.status === "programada" && (
+                              <Button size="sm" variant="soft" onClick={() => void openBrief(v.id)}>
+                                <Sparkles className="h-3.5 w-3.5" /> Ver briefing
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </CollapsibleContent>
@@ -178,6 +257,69 @@ export default function Visits() {
           )}
         </section>
       </div>
+
+      <ScheduleVisitDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        initialDate={selected}
+        onCreated={() => void refreshVisits()}
+      />
+
+      {/* Visit Briefing Sheet */}
+      <Sheet open={!!briefVisitId} onOpenChange={(o) => { if (!o) { setBriefVisitId(null); setBrief(null); } }}>
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="font-display flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" /> Briefing de visita
+            </SheetTitle>
+          </SheetHeader>
+          {briefLoading ? (
+            <div className="mt-6 space-y-4">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <div className="h-3 bg-muted rounded animate-pulse w-1/3" />
+                  <div className="h-3 bg-muted rounded animate-pulse w-full" />
+                  <div className="h-3 bg-muted rounded animate-pulse w-4/5" />
+                </div>
+              ))}
+            </div>
+          ) : brief ? (
+            <div className="mt-6 space-y-5">
+              <section className="rounded-xl border border-border bg-surface p-4">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <FileTextIcon className="h-3 w-3" /> Propiedad
+                </p>
+                <p className="text-sm text-foreground/85 leading-relaxed">{brief.propertyHighlights}</p>
+              </section>
+              <section className="rounded-xl border border-border bg-surface p-4">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <UserIcon className="h-3 w-3" /> Perfil del interesado
+                </p>
+                <p className="text-sm text-foreground/85 leading-relaxed">{brief.leadProfile}</p>
+              </section>
+              {brief.talkingPoints.length > 0 && (
+                <section className="rounded-xl border border-primary/20 bg-primary/5 p-4">
+                  <p className="text-[10px] uppercase tracking-wide text-primary mb-2 flex items-center gap-1.5">
+                    <Sparkles className="h-3 w-3" /> Puntos clave para la conversación
+                  </p>
+                  <ul className="space-y-1.5">
+                    {brief.talkingPoints.map((pt, i) => (
+                      <li key={i} className="text-sm text-foreground/85 flex items-start gap-2">
+                        <span className="shrink-0 mt-0.5 h-4 w-4 rounded-full bg-primary/15 text-primary text-[10px] flex items-center justify-center font-semibold">{i + 1}</span>
+                        {pt}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+            </div>
+          ) : (
+            <div className="mt-6 text-center text-sm text-muted-foreground">
+              No se pudo generar el briefing.
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </AppShell>
   );
 }

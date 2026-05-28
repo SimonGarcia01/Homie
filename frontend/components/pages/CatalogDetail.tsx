@@ -7,6 +7,7 @@ import { ArrowLeft, BedDouble, Bath, MapPin } from "lucide-react";
 import { MarketingShell } from "@/components/homie/MarketingShell";
 import { Button } from "@/components/ui/button";
 import { getPublicProperty, type PublicProperty } from "@/lib/api/public-properties";
+import { getPublicPropertyGallery } from "@/lib/property-cover";
 
 function formatRent(p: PublicProperty) {
   const { monthlyRent, currency } = p.rentalDetail;
@@ -35,11 +36,7 @@ export default function CatalogDetail() {
     });
   }, [id]);
 
-  const images = property?.images?.length
-    ? property.images.map((i) => i.imageUrl)
-    : property?.coverImageUrl
-      ? [property.coverImageUrl]
-      : [];
+  const images = property ? getPublicPropertyGallery(property) : [];
 
   return (
     <MarketingShell>

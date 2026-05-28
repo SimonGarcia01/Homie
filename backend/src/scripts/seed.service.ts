@@ -37,6 +37,7 @@ import { OpportunityProperty } from '../modules/opportunities/entities/opportuni
 import { Opportunity } from '../modules/opportunities/entities/opportunity.entity';
 import { PipelineStage } from '../modules/opportunities/entities/pipeline-stage.entity';
 import { Pipeline } from '../modules/opportunities/entities/pipeline.entity';
+import { DEFAULT_PIPELINE_STAGES } from '../modules/opportunities/pipelines.service';
 import { Organization } from '../modules/organizations/entities/organization.entity';
 import { Owner } from '../modules/owners/entities/owner.entity';
 import { PropertyAgent } from '../modules/properties/entities/property-agent.entity';
@@ -53,9 +54,43 @@ import { Role } from '../modules/roles/entities/role.entity';
 import { TaskItem } from '../modules/tasks/entities/task.entity';
 import { User } from '../modules/users/entities/user.entity';
 import { Visit } from '../modules/visits/entities/visit.entity';
+import { PropertyImage } from '../modules/properties/entities/property-image.entity';
 import { PropertyIncome } from '../modules/properties/entities/property-income.entity';
 import { PropertyExpense } from '../modules/properties/entities/property-expense.entity';
 import { PropertyIncomeType, PropertyExpenseCategory } from '../common/enums';
+
+const SEED_PROPERTY_IMAGES: Record<
+    string,
+    { cover: string; gallery?: string[] }
+> = {
+    'BOHO-001': {
+        cover: 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=1400&q=80',
+        gallery: [
+            'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80',
+            'https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=1400&q=80',
+        ],
+    },
+    'BOHO-002': {
+        cover: 'https://images.unsplash.com/photo-1568605114967-8130f3a36994?auto=format&fit=crop&w=1400&q=80',
+        gallery: [
+            'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1400&q=80',
+            'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=1400&q=80',
+        ],
+    },
+    'BOHO-003': {
+        cover: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=1400&q=80',
+        gallery: [
+            'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=1400&q=80',
+        ],
+    },
+    'BOHO-004': {
+        cover: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?auto=format&fit=crop&w=1400&q=80',
+        gallery: [
+            'https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?auto=format&fit=crop&w=1400&q=80',
+            'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?auto=format&fit=crop&w=1400&q=80',
+        ],
+    },
+};
 
 @Injectable()
 export class SeedService {
@@ -124,6 +159,8 @@ export class SeedService {
         private readonly propertyIncomesRepo: Repository<PropertyIncome>,
         @InjectRepository(PropertyExpense)
         private readonly propertyExpensesRepo: Repository<PropertyExpense>,
+        @InjectRepository(PropertyImage)
+        private readonly propertyImagesRepo: Repository<PropertyImage>,
     ) {}
 
 
@@ -133,6 +170,7 @@ export class SeedService {
 
         const adminRole = roles.find((role) => role.name === UserRoleName.ADMIN)!;
         const agentRole = roles.find((role) => role.name === UserRoleName.AGENT)!;
+        const coordinatorRole = roles.find((role) => role.name === UserRoleName.COORDINATOR)!;
 
         const adminUser = await this.ensureUser({
             email: 'admin@boho.test',
@@ -150,6 +188,15 @@ export class SeedService {
             organizationId: organization.id,
             roleId: agentRole.id,
             password: 'Agent1234!',
+        });
+
+        const coordinatorUser = await this.ensureUser({
+            email: 'coord@boho.test',
+            firstName: 'Coord',
+            lastName: 'Boho',
+            organizationId: organization.id,
+            roleId: coordinatorRole.id,
+            password: 'Coord1234!',
         });
 
         const ownerContact = await this.ensureContact({
@@ -182,6 +229,8 @@ export class SeedService {
 
         const amenity = await this.ensureAmenity('Piscina', 'Piscina comun para residentes');
 
+        await this.ensureDefaultDocumentTypes();
+
         const property = await this.ensureProperty({
             organizationId: organization.id,
             ownerId: owner.id,
@@ -198,6 +247,7 @@ export class SeedService {
         await this.ensurePropertyFeature(property.id);
         await this.ensurePropertyAmenity(property.id, amenity.id);
         await this.ensurePropertyAgent(property.id, agentUser.id, 'showing_agent');
+        await this.ensurePropertyImages(property.id, property.code);
 
         // Financial data for BOHO-001
         await this.ensureIncomesAndExpenses(property.id);
@@ -219,6 +269,7 @@ export class SeedService {
         await this.ensurePropertyFeature2(property2.id);
         await this.ensurePropertyAmenity(property2.id, amenity.id);
         await this.ensurePropertyAgent(property2.id, agentUser.id, 'showing_agent');
+        await this.ensurePropertyImages(property2.id, property2.code);
         
         await this.ensureIncomesAndExpenses(property2.id);
 
@@ -239,6 +290,7 @@ export class SeedService {
         await this.ensurePropertyFeature3(property3.id);
         await this.ensurePropertyAmenity(property3.id, amenity.id);
         await this.ensurePropertyAgent(property3.id, agentUser.id, 'showing_agent');
+        await this.ensurePropertyImages(property3.id, property3.code);
 
         await this.ensureIncomesAndExpenses(property3.id);
 
@@ -259,6 +311,7 @@ export class SeedService {
         await this.ensurePropertyFeature4(property4.id);
         await this.ensurePropertyAmenity(property4.id, amenity.id);
         await this.ensurePropertyAgent(property4.id, agentUser.id, 'showing_agent');
+        await this.ensurePropertyImages(property4.id, property4.code);
 
         await this.ensureIncomesAndExpenses(property4.id);
 
@@ -274,7 +327,12 @@ export class SeedService {
         await this.ensurePreferenceZone(searchPreference.id);
 
         const pipeline = await this.ensurePipeline(organization.id, 'Arriendos');
-        const stage = await this.ensurePipelineStage(pipeline.id, 'Calificación', 1);
+        for (const s of DEFAULT_PIPELINE_STAGES) {
+            await this.ensurePipelineStage(pipeline.id, s.name, s.order);
+        }
+        const stage = await this.pipelineStagesRepo.findOneOrFail({
+            where: { pipelineId: pipeline.id, order: 3 },
+        });
         const opportunity = await this.ensureOpportunity({
             organizationId: organization.id,
             leadId: lead.id,
@@ -313,24 +371,30 @@ export class SeedService {
 
         const rentalApplication = await this.ensureRentalApplication(opportunity.id, property.id);
         await this.ensureApplicationApplicant(rentalApplication.id, tenantContact.id);
-        const documentType = await this.ensureDocumentType('cedula', 'Cédula de ciudadanía');
+        const documentTypes = await this.ensureDefaultDocumentTypes();
+        const cedulaType = documentTypes.find((t) => t.key === 'cedula')!;
         const document = await this.ensureDocument(adminUser.id);
-        await this.ensureChecklistItem(rentalApplication.id, documentType.id, document.id);
+        await this.ensureChecklistItem(rentalApplication.id, cedulaType.id, document.id);
+        for (const docType of documentTypes) {
+            if (docType.key === 'cedula') continue;
+            await this.ensureChecklistItemPending(rentalApplication.id, docType.id);
+        }
         await this.ensureRentalEvaluation(rentalApplication.id, adminUser.id);
         await this.ensureRentalContract(rentalApplication.id, property.id, tenantContact.id);
 
         return {
             organization,
             roles,
-            users: [adminUser.email, agentUser.email],
+            users: [adminUser.email, agentUser.email, coordinatorUser.email],
             contacts: [ownerContact.email, tenantContact.email, leadContact.email],
             property: property.code,
             lead: lead.id,
             opportunity: opportunity.id,
             rentalApplication: rentalApplication.id,
             credentials: [
-                { email: 'admin@boho.test', password: 'Admin1234!' },
-                { email: 'agent@boho.test', password: 'Agent1234!' },
+                { email: 'admin@boho.test', password: 'Admin1234!', role: 'admin' },
+                { email: 'coord@boho.test', password: 'Coord1234!', role: 'coordinator' },
+                { email: 'agent@boho.test', password: 'Agent1234!', role: 'agent' },
             ],
         };
     }
@@ -467,6 +531,32 @@ export class SeedService {
         return this.amenitiesRepo.save(this.amenitiesRepo.create({ name, description }));
     }
 
+    private async ensurePropertyImages(propertyId: string, code: string) {
+        const config = SEED_PROPERTY_IMAGES[code];
+        if (!config) return;
+
+        const existingCount = await this.propertyImagesRepo.count({ where: { propertyId } });
+        if (existingCount > 0) return;
+
+        const urls = [config.cover, ...(config.gallery ?? [])];
+        for (let i = 0; i < urls.length; i++) {
+            const imageUrl = urls[i];
+            await this.propertyImagesRepo.save(
+                this.propertyImagesRepo.create({
+                    propertyId,
+                    storageKey: `seed/${code.toLowerCase()}-${i + 1}.jpg`,
+                    imageUrl,
+                    imageType: 'gallery',
+                    mimeType: 'image/jpeg',
+                    fileSizeBytes: '0',
+                    originalFilename: i === 0 ? 'cover.jpg' : `gallery-${i}.jpg`,
+                    sortOrder: i,
+                    isCover: i === 0,
+                }),
+            );
+        }
+    }
+
     private async ensureProperty(input: {
         organizationId: string;
         ownerId: string;
@@ -478,8 +568,23 @@ export class SeedService {
         publicationStatus: PropertyPublicationStatus;
     }) {
         const existing = await this.propertiesRepo.findOne({ where: { code: input.code } });
-        if (existing) return existing;
-        return this.propertiesRepo.save(this.propertiesRepo.create(input));
+        if (existing) {
+            Object.assign(existing, {
+                title: input.title,
+                description: input.description,
+                propertyType: input.propertyType,
+                commercialStatus: input.commercialStatus,
+                publicationStatus: input.publicationStatus,
+                isVisible: true,
+            });
+            return this.propertiesRepo.save(existing);
+        }
+        return this.propertiesRepo.save(
+            this.propertiesRepo.create({
+                ...input,
+                isVisible: true,
+            }),
+        );
     }
 
     private async ensurePropertyLocation(propertyId: string) {
@@ -814,7 +919,7 @@ export class SeedService {
             this.rentalApplicationsRepo.create({
                 opportunityId,
                 propertyId,
-                status: RentalApplicationStatus.UNDER_REVIEW,
+                status: RentalApplicationStatus.PENDING_DOCUMENTS,
             }),
         );
     }
@@ -833,10 +938,44 @@ export class SeedService {
         );
     }
 
+    private async ensureDefaultDocumentTypes() {
+        const defaults = [
+            { key: 'cedula', label: 'Cédula de ciudadanía' },
+            { key: 'comprobante_renta', label: 'Comprobante de renta' },
+            { key: 'contrato_trabajo', label: 'Contrato de trabajo' },
+            { key: 'garantia', label: 'Documento de garantía' },
+        ];
+        const types = [];
+        for (const item of defaults) {
+            types.push(await this.ensureDocumentType(item.key, item.label));
+        }
+        return types;
+    }
+
     private async ensureDocumentType(key: string, label: string) {
         const existing = await this.documentTypesRepo.findOne({ where: { key } });
-        if (existing) return existing;
+        if (existing) {
+            if (!existing.isRequiredDefault) {
+                existing.isRequiredDefault = true;
+                return this.documentTypesRepo.save(existing);
+            }
+            return existing;
+        }
         return this.documentTypesRepo.save(this.documentTypesRepo.create({ key, label, isRequiredDefault: true }));
+    }
+
+    private async ensureChecklistItemPending(rentalApplicationId: string, documentTypeId: string) {
+        const existing = await this.checklistItemsRepo.findOne({
+            where: { rentalApplicationId, documentTypeId },
+        });
+        if (existing) return existing;
+        return this.checklistItemsRepo.save(
+            this.checklistItemsRepo.create({
+                rentalApplicationId,
+                documentTypeId,
+                status: ChecklistItemStatus.PENDING,
+            }),
+        );
     }
 
     private async ensureDocument(uploadedByUserId: string) {

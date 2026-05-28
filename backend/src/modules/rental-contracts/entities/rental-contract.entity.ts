@@ -35,6 +35,9 @@ export class RentalContract {
     @Column({ type: 'numeric', precision: 14, scale: 2, name: 'monthly_rent' })
     monthlyRent!: string;
 
+    @Column({ type: 'timestamptz', name: 'signed_at', nullable: true })
+    signedAt?: Date;
+
     @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
     createdAt!: Date;
 

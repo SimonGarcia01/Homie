@@ -12,34 +12,36 @@ export const Footer = () => (
           <span className="font-display text-xl font-semibold">Homie</span>
         </Link>
         <p className="mt-4 text-sm text-muted-foreground max-w-sm">
-          Un hogar digital para brokers y administradores que prefieren trabajar con calma.
+          Plataforma multi-broker: busca arriendo como arrendatario o gestiona tu cartera como broker.
         </p>
       </div>
 
       <div>
-        <div className="text-sm font-medium text-foreground">Producto</div>
+        <div className="text-sm font-medium text-foreground">Busco arriendo</div>
         <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
-          <li><Link href="/#cartera" className="hover:text-foreground">Propiedades</Link></li>
-          <li><Link href="/#oportunidades" className="hover:text-foreground">Oportunidades</Link></li>
-          <li><Link href="/#cuidado" className="hover:text-foreground">Documentos</Link></li>
-          <li><Link href="/#finanzas" className="hover:text-foreground">Finanzas</Link></li>
+          <li><Link href="/buscar" className="hover:text-foreground">Explorar propiedades</Link></li>
+          <li><Link href="/interesado/registro" className="hover:text-foreground">Crear cuenta</Link></li>
+          <li><Link href="/mi-cuenta/favoritos" className="hover:text-foreground">Mis favoritos</Link></li>
+          <li><Link href="/mi-cuenta/solicitudes" className="hover:text-foreground">Mis solicitudes</Link></li>
         </ul>
       </div>
 
       <div>
-        <div className="text-sm font-medium text-foreground">Homie</div>
+        <div className="text-sm font-medium text-foreground">Brokers</div>
         <ul className="mt-3 space-y-2 text-sm text-muted-foreground">
+          <li><Link href="/login" className="hover:text-foreground">Ingresar al CRM</Link></li>
+          <li><Link href="/register" className="hover:text-foreground">Registrar broker</Link></li>
+          <li><Link href="/#producto" className="hover:text-foreground">Features</Link></li>
           <li><Link href="/sobre-nosotros" className="hover:text-foreground">Sobre nosotros</Link></li>
-          <li><Link href="/privacidad" className="hover:text-foreground">Privacidad</Link></li>
           <li><Link href="/contacto" className="hover:text-foreground">Contacto</Link></li>
-          <li><Link href="/catalogo" className="hover:text-foreground">Catálogo</Link></li>
+          <li><Link href="/privacidad" className="hover:text-foreground">Privacidad</Link></li>
         </ul>
       </div>
     </div>
     <div className="border-t border-border">
-      <div className="container py-5 text-xs text-muted-foreground flex justify-between">
+      <div className="container py-5 text-xs text-muted-foreground flex flex-col sm:flex-row justify-between gap-2">
         <span>© {new Date().getFullYear()} Homie · Hecho con cuidado.</span>
-        <span>Cultivado para brokers.</span>
+        <span>Arrendatarios y brokers, en un mismo hogar digital.</span>
       </div>
     </div>
   </footer>

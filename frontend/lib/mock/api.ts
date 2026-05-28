@@ -5,6 +5,7 @@ import {
   type Owner,
   type Role,
   type Lead,
+  type Opportunity,
   type Visit,
   type Finance,
   type Document,
@@ -12,7 +13,15 @@ import {
 
 import * as backendAuth from "@/lib/api/auth";
 import { sendAssistantMessage, type AssistantSendPayload } from "@/lib/api/assistant";
-import { listPropertiesFull, createProperty as createBackendProperty } from "@/lib/api/properties";
+import { listPropertiesFull, createProperty as createBackendProperty, updateProperty as updateBackendProperty } from "@/lib/api/properties";
+import {
+  createLeadMessage as createBackendLeadMessage,
+  listInboxThreads as fetchInboxThreads,
+  listLeadMessages as fetchLeadMessages,
+  type ConversationMessage,
+  type CreateMessagePayload,
+  type InboxThread,
+} from "@/lib/api/inbox";
 import {
   listPropertyImages as fetchPropertyImages,
   uploadPropertyImages as uploadBackendPropertyImages,
@@ -21,7 +30,8 @@ import {
   type PropertyImage,
   type UploadResult,
 } from "@/lib/api/property-images";
-import { createOwner as createBackendOwner, getOwnerOptions } from "@/lib/api/owners";
+import { createOwner as createBackendOwner, getOwnerOptions, listOwners as fetchOwnersList, updateOwner as updateBackendOwner, deleteOwner as deleteBackendOwner } from "@/lib/api/owners";
+import { downloadPropertyRecordsPdf } from "@/lib/api/properties";
 import { getIncomesSummary, getGlobalExpenses } from "@/lib/api/reports";
 import { getIncomes, createIncome } from "@/lib/api/property-incomes";
 import { getExpenses, createExpense } from "@/lib/api/finanzas";
@@ -32,6 +42,7 @@ import {
   unwrap,
   mapBackendProperty,
   mapUiPropertyToCreate,
+  mapUiPropertyToUpdate,
   mapLoginUserToSafeUser,
   mapBackendOwner,
   mapBackendUserRow,
@@ -186,6 +197,17 @@ export const api = {
     return profileToSafeUser(result);
   },
 
+  async updateProfile(input: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    currentPassword?: string;
+    password?: string;
+  }): Promise<Omit<User, "password">> {
+    const updated = unwrap(await backendAuth.updateProfile(input));
+    return profileToSafeUser(updated);
+  },
+
   async listUsers(): Promise<Omit<User, "password">[]> {
     const rows = unwrap(await fetchUsers());
     return rows.map(mapBackendUserRow);
@@ -246,6 +268,11 @@ export const api = {
   },
 
   async listOwners(): Promise<Owner[]> {
+    const rows = unwrap(await fetchOwnersList());
+    return rows.map(mapBackendOwner);
+  },
+
+  async listOwnerOptions(): Promise<Owner[]> {
     const options = unwrap(await getOwnerOptions());
     return options.map(mapBackendOwner);
   },
@@ -260,6 +287,30 @@ export const api = {
       }),
     );
     return mapBackendOwner(created);
+  },
+
+  async updateOwner(
+    id: string,
+    input: { firstName: string; lastName: string; email?: string; phone?: string; ownerType?: "person" | "company" },
+  ) {
+    const updated = unwrap(
+      await updateBackendOwner(id, {
+        firstName: input.firstName.trim(),
+        lastName: input.lastName.trim(),
+        email: input.email?.trim() || undefined,
+        phone: input.phone?.trim() || undefined,
+        ownerType: input.ownerType,
+      }),
+    );
+    return mapBackendOwner(updated);
+  },
+
+  async deleteOwner(id: string) {
+    unwrap(await deleteBackendOwner(id));
+  },
+
+  async downloadPropertyReport(propertyId: string, startDate?: string, endDate?: string) {
+    unwrap(await downloadPropertyRecordsPdf(propertyId, startDate, endDate));
   },
 
   async listProperties(): Promise<Property[]> {
@@ -278,6 +329,17 @@ export const api = {
     return mapBackendProperty(created);
   },
 
+  async updateProperty(id: string, patch: Partial<Omit<Property, "id" | "createdAt">>): Promise<Property> {
+    const payload = mapUiPropertyToUpdate(patch);
+    if (Object.keys(payload).length === 0) {
+      const found = await this.getProperty(id);
+      if (!found) throw new Error("Propiedad no encontrada");
+      return found;
+    }
+    const updated = unwrap(await updateBackendProperty(id, payload));
+    return mapBackendProperty(updated);
+  },
+
   async listPropertyImages(propertyId: string): Promise<PropertyImage[]> {
     return unwrap(await fetchPropertyImages(propertyId));
   },
@@ -292,6 +354,18 @@ export const api = {
 
   async setPropertyImageCover(propertyId: string, imageId: string): Promise<PropertyImage> {
     return unwrap(await setBackendPropertyImageCover(propertyId, imageId));
+  },
+
+  async listInboxThreads(limit = 30): Promise<InboxThread[]> {
+    return unwrap(await fetchInboxThreads(limit));
+  },
+
+  async listLeadMessages(leadId: string, limit = 100): Promise<ConversationMessage[]> {
+    return unwrap(await fetchLeadMessages(leadId, limit));
+  },
+
+  async createLeadMessage(leadId: string, payload: CreateMessagePayload): Promise<ConversationMessage> {
+    return unwrap(await createBackendLeadMessage(leadId, payload));
   },
 
   async getDashboard() {
@@ -428,7 +502,7 @@ export const api = {
             entity: "aplicaciones",
             message: `${pendingApplications} aplicaciones esperan revisión`,
             action: "Ver aplicaciones",
-            to: "/app",
+            to: "/app/aplicaciones",
           }]
         : []),
       ...(sinImagen
@@ -466,16 +540,15 @@ export const api = {
 
   async getRecentActivity(limit = 8) {
     const rows = unwrap(await crm.listActivities(limit));
-    const users = await this.listUsers();
     return rows.map((a) => ({
       id: a.id,
       type: a.type as "lead" | "visita" | "documento" | "propiedad" | "oportunidad" | "contrato",
       message: a.message,
       userId: a.userId,
+      userName: a.userName ?? "Equipo",
       entityId: a.entityId ?? a.id,
       entityLabel: a.entityLabel ?? "",
       date: a.date,
-      user: users.find((u) => u.id === a.userId),
     }));
   },
 
@@ -507,15 +580,16 @@ export const api = {
   },
 
   async convertLead(id: string, propertyId?: string) {
-    return crm.convertLead(id, propertyId);
+    return unwrap(await crm.convertLead(id, propertyId));
   },
 
-  async listOpportunities(): Promise<(Lead & { property?: Property })[]> {
+  async listOpportunities(): Promise<Opportunity[]> {
     const properties = await this.listProperties();
     const board = unwrap(await crm.getOpportunityBoard());
     const items = board.stages.flatMap((s) =>
       s.items.map((item) => ({
         id: item.id,
+        leadId: item.leadId ?? "",
         name: item.name,
         email: item.email,
         phone: item.phone,
@@ -526,6 +600,7 @@ export const api = {
     );
     return items.map((l) => ({
       ...l,
+      leadId: l.leadId,
       property: l.propertyId ? properties.find((p) => p.id === l.propertyId) : undefined,
     }));
   },
@@ -550,6 +625,16 @@ export const api = {
     return mapVisitRow(unwrap(await crm.updateVisit(id, patch)));
   },
 
+  async scheduleVisit(input: {
+    leadId: string;
+    propertyId: string;
+    scheduledAt: string;
+    durationMin?: number;
+    notes?: string;
+  }) {
+    return mapVisitRow(unwrap(await crm.scheduleVisit(input)));
+  },
+
   async listDocuments(): Promise<(Document & { property?: Property; lead?: Lead; owner?: Owner })[]> {
     const properties = await this.listProperties();
     const leadsList = await this.listLeads();
@@ -564,8 +649,59 @@ export const api = {
       }));
   },
 
-  async uploadDocument(file: File, meta?: { propertyId?: string; leadId?: string; kind?: string }) {
+  async uploadDocument(file: File, meta?: { propertyId?: string; leadId?: string; ownerId?: string; kind?: string }) {
     return mapDocumentRow(unwrap(await crm.uploadDocument(file, meta)));
+  },
+
+  async updateDocumentStatus(id: string, status: "approved" | "rejected" | "received" | "pending") {
+    return mapDocumentRow(unwrap(await crm.updateDocumentStatus(id, status)));
+  },
+
+  async listApplications(status?: string) {
+    return unwrap(await crm.listApplications(status));
+  },
+
+  async updateApplicationStatus(id: string, status: string) {
+    return unwrap(await crm.updateApplicationStatus(id, status));
+  },
+
+  async createApplication(opportunityId: string, propertyId: string) {
+    return unwrap(await crm.createApplication(opportunityId, propertyId));
+  },
+
+  async getApplication(id: string) {
+    return unwrap(await crm.getApplication(id));
+  },
+
+  async updateChecklistItem(applicationId: string, itemId: string, status: string) {
+    return unwrap(await crm.updateChecklistItem(applicationId, itemId, status));
+  },
+
+  async uploadApplicationDocument(
+    applicationId: string,
+    checklistItemId: string,
+    file: File,
+    meta?: { propertyId?: string; leadId?: string; kind?: string },
+  ) {
+    return unwrap(await crm.uploadApplicationDocument(applicationId, checklistItemId, file, meta));
+  },
+
+  async createEvaluation(applicationId: string, input: { recommendation: string; notes?: string }) {
+    return unwrap(await crm.createEvaluation(applicationId, input));
+  },
+
+  async createContract(
+    applicationId: string,
+    input: { startDate: string; endDate: string; monthlyRent: string },
+  ) {
+    return unwrap(await crm.createContract(applicationId, input));
+  },
+
+  async updateContract(
+    applicationId: string,
+    input: { status?: string; startDate?: string; endDate?: string; monthlyRent?: string },
+  ) {
+    return unwrap(await crm.updateContract(applicationId, input));
   },
 
   async downloadDocument(id: string) {

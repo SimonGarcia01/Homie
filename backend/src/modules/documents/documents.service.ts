@@ -1,7 +1,7 @@
 import { createReadStream, promises as fs } from 'fs';
 import { join } from 'path';
 
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Inject, Injectable, NotFoundException, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 import { ChecklistItemStatus } from '../../common/enums';
 import type { StorageService } from '../../common/storage/storage.tokens';
 import { STORAGE_SERVICE } from '../../common/storage/storage.tokens';
+import { RentalApplicationsService } from '../rental-applications/rental-applications.service';
 
 import { DocumentType } from './entities/document-type.entity';
 import { DocumentRecord } from './entities/document.entity';
@@ -47,6 +48,8 @@ export class DocumentsService {
         @Inject(STORAGE_SERVICE)
         private readonly storage: StorageService,
         configService: ConfigService,
+        @Inject(forwardRef(() => RentalApplicationsService))
+        private readonly applicationsService: RentalApplicationsService,
     ) {
         this.uploadsDir = configService.get<string>('UPLOADS_DIR', join(process.cwd(), 'uploads'));
     }
@@ -91,7 +94,14 @@ export class DocumentsService {
     async upload(
         userId: string,
         file: { buffer: Buffer; originalname: string; mimetype: string; size: number },
-        meta?: { propertyId?: string; leadId?: string; ownerId?: string; kind?: string },
+        meta?: {
+            propertyId?: string;
+            leadId?: string;
+            ownerId?: string;
+            kind?: string;
+            applicationId?: string;
+            checklistItemId?: string;
+        },
     ) {
         const stored = await this.storage.store({
             namespace: 'documents',
@@ -115,6 +125,14 @@ export class DocumentsService {
                 status: ChecklistItemStatus.PENDING,
             }),
         );
+
+        if (meta?.applicationId && meta?.checklistItemId) {
+            await this.applicationsService.linkDocumentToChecklistItem(
+                meta.checklistItemId,
+                doc.id,
+                meta.applicationId,
+            );
+        }
 
         return this.toView(doc);
     }

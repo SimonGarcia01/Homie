@@ -31,6 +31,7 @@ import { Role } from '../modules/roles/entities/role.entity';
 import { TaskItem } from '../modules/tasks/entities/task.entity';
 import { User } from '../modules/users/entities/user.entity';
 import { Visit } from '../modules/visits/entities/visit.entity';
+import { PropertyImage } from '../modules/properties/entities/property-image.entity';
 import { PropertyIncome } from '../modules/properties/entities/property-income.entity';
 import { PropertyExpense } from '../modules/properties/entities/property-expense.entity';
 
@@ -62,6 +63,7 @@ import { SeedService } from './seed.service';
             PropertyFeature,
             PropertyLocation,
             PropertyRentalDetail,
+            PropertyImage,
             RentalApplication,
             RentalContract,
             RentalEvaluation,

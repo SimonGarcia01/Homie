@@ -46,17 +46,17 @@ export class PipelinesService {
             );
         }
 
-        const existing = await this.stageRepo.find({ where: { pipelineId: pipeline.id }, order: { order: 'ASC' } });
-        if (existing.length === 0) {
-            for (const stage of DEFAULT_PIPELINE_STAGES) {
-                await this.stageRepo.save(
-                    this.stageRepo.create({
-                        pipelineId: pipeline.id,
-                        name: stage.name,
-                        order: stage.order,
-                    }),
-                );
-            }
+        for (const stage of DEFAULT_PIPELINE_STAGES) {
+            await this.stageRepo.upsert(
+                {
+                    pipelineId: pipeline.id,
+                    name: stage.name,
+                    order: stage.order,
+                },
+                {
+                    conflictPaths: ['pipelineId', 'order'],
+                },
+            );
         }
 
         return this.getDefaultPipeline(organizationId);

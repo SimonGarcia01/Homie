@@ -13,7 +13,18 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T |
   });
   if (!res.ok) {
     const text = await res.text();
-    return { error: text || res.statusText, status: res.status };
+    try {
+      const parsed = JSON.parse(text) as { message?: string | string[] };
+      const msg =
+        typeof parsed.message === "string"
+          ? parsed.message
+          : Array.isArray(parsed.message)
+            ? parsed.message.join(", ")
+            : text;
+      return { error: msg || res.statusText, status: res.status };
+    } catch {
+      return { error: text || res.statusText, status: res.status };
+    }
   }
   if (res.status === 204) return {} as T;
   return res.json() as Promise<T>;
@@ -102,6 +113,20 @@ export async function listVisits(): Promise<VisitRow[] | ApiError> {
   return requestJson<VisitRow[]>("/api/visits");
 }
 
+export async function scheduleVisit(input: {
+  leadId: string;
+  propertyId: string;
+  scheduledAt: string;
+  durationMin?: number;
+  notes?: string;
+  visitType?: "in_person" | "virtual";
+}): Promise<VisitRow | ApiError> {
+  return requestJson<VisitRow>("/api/visits/schedule", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export async function listUpcomingVisits(): Promise<VisitRow[] | ApiError> {
   return requestJson<VisitRow[]>("/api/visits/upcoming");
 }
@@ -126,6 +151,7 @@ export type ActivityRow = {
   type: string;
   message: string;
   userId: string;
+  userName?: string;
   entityId?: string;
   entityLabel?: string;
   date: string;
@@ -153,13 +179,14 @@ export async function listDocuments(): Promise<DocumentRow[] | ApiError> {
   return requestJson<DocumentRow[]>("/api/documents");
 }
 
-export async function uploadDocument(file: File, meta?: { propertyId?: string; leadId?: string; kind?: string }) {
+export async function uploadDocument(file: File, meta?: { propertyId?: string; leadId?: string; ownerId?: string; kind?: string }) {
   const token = getAccessToken();
   if (!token) return { error: "Missing access token", status: 401 } as ApiError;
   const form = new FormData();
   form.append("file", file);
   if (meta?.propertyId) form.append("propertyId", meta.propertyId);
   if (meta?.leadId) form.append("leadId", meta.leadId);
+  if (meta?.ownerId) form.append("ownerId", meta.ownerId);
   if (meta?.kind) form.append("kind", meta.kind);
   const res = await fetch(buildPublicApiUrl("/api/documents/upload"), {
     method: "POST",
@@ -196,4 +223,153 @@ export async function getDocumentStats(): Promise<{
 
 export async function countPendingApplications(): Promise<{ count: number } | ApiError> {
   return requestJson("/api/applications/counts/pending");
+}
+
+export type ApplicationRow = {
+  id: string;
+  opportunityId: string;
+  propertyId: string;
+  status: string;
+  createdAt: string;
+  propertyTitle?: string;
+  leadName?: string;
+};
+
+export async function listApplications(status?: string): Promise<ApplicationRow[] | ApiError> {
+  const qs = status ? `?status=${encodeURIComponent(status)}` : "";
+  return requestJson<ApplicationRow[]>(`/api/applications${qs}`);
+}
+
+export async function updateApplicationStatus(id: string, status: string): Promise<ApplicationRow | ApiError> {
+  return requestJson<ApplicationRow>(`/api/applications/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function createApplication(opportunityId: string, propertyId: string): Promise<ApplicationRow | ApiError> {
+  return requestJson<ApplicationRow>("/api/applications", {
+    method: "POST",
+    body: JSON.stringify({ opportunityId, propertyId }),
+  });
+}
+
+export type ApplicationChecklistItem = {
+  id: string;
+  status: string;
+  documentType: { id: string; key: string; label: string };
+  document?: { id: string; name: string; downloadUrl: string; status: string };
+};
+
+export type ApplicationDetail = ApplicationRow & {
+  checklistItems: ApplicationChecklistItem[];
+  evaluation?: {
+    id: string;
+    recommendation: string;
+    notes?: string;
+    createdAt: string;
+  };
+  contract?: {
+    id: string;
+    status: string;
+    startDate: string;
+    endDate: string;
+    monthlyRent: string;
+    signedAt?: string;
+  };
+  property?: { id: string; title: string };
+  lead?: { id: string; name: string; email?: string };
+};
+
+export async function getApplication(id: string): Promise<ApplicationDetail | ApiError> {
+  return requestJson<ApplicationDetail>(`/api/applications/${id}`);
+}
+
+export async function updateChecklistItem(
+  applicationId: string,
+  itemId: string,
+  status: string,
+): Promise<ApplicationDetail | ApiError> {
+  return requestJson<ApplicationDetail>(`/api/applications/${applicationId}/checklist/${itemId}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function uploadApplicationDocument(
+  applicationId: string,
+  checklistItemId: string,
+  file: File,
+  meta?: { propertyId?: string; leadId?: string; kind?: string },
+): Promise<DocumentRow | ApiError> {
+  const token = getAccessToken();
+  if (!token) return { error: "Missing access token", status: 401 };
+  const form = new FormData();
+  form.append("file", file);
+  form.append("applicationId", applicationId);
+  form.append("checklistItemId", checklistItemId);
+  if (meta?.propertyId) form.append("propertyId", meta.propertyId);
+  if (meta?.leadId) form.append("leadId", meta.leadId);
+  if (meta?.kind) form.append("kind", meta.kind);
+  const res = await fetch(buildPublicApiUrl("/api/documents/upload"), {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: form,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    try {
+      const parsed = JSON.parse(text) as { message?: string | string[] };
+      const msg =
+        typeof parsed.message === "string"
+          ? parsed.message
+          : Array.isArray(parsed.message)
+            ? parsed.message.join(", ")
+            : text;
+      return { error: msg || res.statusText, status: res.status };
+    } catch {
+      return { error: text || res.statusText, status: res.status };
+    }
+  }
+  return res.json() as Promise<DocumentRow>;
+}
+
+export async function createEvaluation(
+  applicationId: string,
+  input: { recommendation: string; notes?: string },
+): Promise<ApplicationDetail | ApiError> {
+  return requestJson<ApplicationDetail>(`/api/applications/${applicationId}/evaluation`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function createContract(
+  applicationId: string,
+  input: { startDate: string; endDate: string; monthlyRent: string },
+): Promise<ApplicationDetail | ApiError> {
+  return requestJson<ApplicationDetail>(`/api/applications/${applicationId}/contract`, {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateContract(
+  applicationId: string,
+  input: { status?: string; startDate?: string; endDate?: string; monthlyRent?: string },
+): Promise<ApplicationDetail | ApiError> {
+  return requestJson<ApplicationDetail>(`/api/applications/${applicationId}/contract`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateDocumentStatus(
+  id: string,
+  status: "approved" | "rejected" | "received" | "pending",
+): Promise<DocumentRow | ApiError> {
+  return requestJson<DocumentRow>(`/api/documents/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
 }

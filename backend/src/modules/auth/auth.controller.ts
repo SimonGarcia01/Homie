@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
@@ -7,6 +7,7 @@ import { Public } from '../../common/auth/public.decorator';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -38,5 +39,11 @@ export class AuthController {
     @Get('me')
     async me(@Req() req: { user: { id: string } }) {
         return this.authService.getProfile(req.user.id);
+    }
+
+    @ApiBearerAuth()
+    @Patch('me')
+    async updateMe(@Req() req: { user: { id: string } }, @Body() dto: UpdateProfileDto) {
+        return this.authService.updateProfile(req.user.id, dto);
     }
 }

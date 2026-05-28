@@ -81,6 +81,22 @@ export enum ActivityType {
     STAGE_CHANGE = 'stage_change',
     VISIT = 'visit',
     DOCUMENT_RECEIVED = 'document_received',
+    PROPERTY = 'property',
+    PHOTO_UPLOAD = 'photo_upload',
+}
+
+export enum MessageChannel {
+    WHATSAPP = 'whatsapp',
+    CALL = 'call',
+    EMAIL = 'email',
+    SMS = 'sms',
+    NOTE = 'note',
+    OTHER = 'other',
+}
+
+export enum MessageDirection {
+    INBOUND = 'inbound',
+    OUTBOUND = 'outbound',
 }
 
 export enum TaskPriority {

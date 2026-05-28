@@ -1,10 +1,13 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 
+import { Public } from '../../common/auth/public.decorator';
+
 import { PublicPropertyFilterDto } from './dto/public-property-filter.dto';
 import { PropertiesService } from './properties.service';
 
 @ApiTags('public-properties')
+@Public()
 @Controller('public/properties')
 export class PublicPropertiesController {
     constructor(private readonly service: PropertiesService) {}
@@ -14,6 +17,12 @@ export class PublicPropertiesController {
     @ApiResponse({ status: 200, description: 'Lista de propiedades paginada' })
     findAll(@Query() filter: PublicPropertyFilterDto) {
         return this.service.findPublicProperties(filter);
+    }
+
+    @Get('meta/organizations')
+    @ApiOperation({ summary: 'Brokers con propiedades publicadas en el catálogo' })
+    findOrganizations() {
+        return this.service.findPublicOrganizations();
     }
 
     @Get(':id')

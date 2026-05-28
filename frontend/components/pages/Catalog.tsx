@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { BedDouble, Bath, Home, ImageOff, MapPin, Search } from "lucide-react";
+import { BedDouble, Bath, Home, MapPin } from "lucide-react";
+import { SearchInputWithSpeech } from "@/components/speech/SearchInputWithSpeech";
 import { MarketingShell } from "@/components/homie/MarketingShell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { listPublicProperties, type PublicProperty } from "@/lib/api/public-properties";
+import { getPublicPropertyCover } from "@/lib/property-cover";
 
 function formatRent(p: PublicProperty) {
   const { monthlyRent, currency } = p.rentalDetail;
@@ -54,13 +55,13 @@ export default function Catalog() {
           </p>
         </header>
 
-        <div className="mt-8 relative max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
+        <div className="mt-8">
+          <SearchInputWithSpeech
+            className="max-w-md"
+            inputClassName="h-11"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={setQ}
             placeholder="Buscar por título, comuna o dirección"
-            className="pl-9 h-11"
           />
         </div>
 
@@ -83,7 +84,7 @@ export default function Catalog() {
         ) : (
           <ul className="mt-8 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {filtered.map((p) => {
-              const cover = p.coverImageUrl ?? p.images.find((i) => i.isCover)?.imageUrl ?? p.images[0]?.imageUrl;
+              const cover = getPublicPropertyCover(p);
               return (
                 <li key={p.id}>
                   <Link
@@ -91,18 +92,12 @@ export default function Catalog() {
                     className="group block rounded-2xl border border-border bg-surface overflow-hidden shadow-soft hover:shadow-card transition-all hover:-translate-y-0.5"
                   >
                     <div className="relative aspect-[4/3] bg-muted overflow-hidden">
-                      {cover ? (
-                        <img
-                          src={cover}
-                          alt={p.title}
-                          loading="lazy"
-                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 grid place-items-center text-muted-foreground">
-                          <ImageOff className="h-8 w-8" />
-                        </div>
-                      )}
+                      <img
+                        src={cover}
+                        alt={p.title}
+                        loading="lazy"
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
                     </div>
                     <div className="p-4">
                       <h2 className="font-display text-lg font-semibold line-clamp-1">{p.title}</h2>

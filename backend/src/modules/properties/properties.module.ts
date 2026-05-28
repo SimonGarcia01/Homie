@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
+import { ActivitiesModule } from '../activities/activities.module';
+
 import { PropertyRentalDetail } from './entities/property-rental-detail.entity';
 import { PropertyLocation } from './entities/property-location.entity';
 import { PropertyImage } from './entities/property-image.entity';
@@ -18,6 +20,7 @@ import { PublicPropertiesController } from './public-properties.controller';
 
 @Module({
     imports: [
+        ActivitiesModule,
         TypeOrmModule.forFeature([
             Property,
             PropertyLocation,

@@ -166,6 +166,26 @@ export function mapUiPropertyToCreate(input: Omit<Property, "id" | "createdAt">)
   };
 }
 
+export function mapUiPropertyToUpdate(input: Partial<Omit<Property, "id" | "createdAt">>) {
+  const payload: Partial<ReturnType<typeof mapUiPropertyToCreate>> = {};
+  if (input.title !== undefined) payload.title = input.title.trim();
+  if (input.description !== undefined) payload.description = input.description?.trim();
+  if (input.type !== undefined) payload.propertyType = UI_TO_TYPE[input.type] as BackendProperty["propertyType"];
+  if (input.rent !== undefined) payload.monthlyRent = input.rent;
+  if (input.currency !== undefined) payload.currency = input.currency;
+  if (input.city !== undefined) payload.city = input.city.trim();
+  if (input.address !== undefined) payload.address = input.address.trim();
+  if (input.status !== undefined) payload.commercialStatus = UI_TO_COMMERCIAL[input.status] as BackendProperty["commercialStatus"];
+  if (input.publishStatus !== undefined) {
+    payload.publicationStatus = UI_TO_PUBLICATION[input.publishStatus] as BackendProperty["publicationStatus"];
+    payload.isVisible = input.publishStatus === "publicada";
+  }
+  if (input.bedrooms !== undefined) payload.bedrooms = input.bedrooms;
+  if (input.bathrooms !== undefined) payload.bathrooms = input.bathrooms;
+  if (input.ownerId !== undefined) payload.ownerId = input.ownerId;
+  return payload;
+}
+
 export function mapLoginUserToSafeUser(user: {
   id: string;
   email: string;
