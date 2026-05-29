@@ -1,0 +1,4 @@
+# Provide the toolchain node-gyp needs to compile native modules
+# (e.g. bcrypt / better-sqlite3) during install on Railway's Nixpacks build.
+[phases.setup]
+aptPkgs = ["python3", "build-essential"]
